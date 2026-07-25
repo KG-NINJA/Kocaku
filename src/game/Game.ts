@@ -181,6 +181,9 @@ export class Game {
 
   private advanceToStage2(): void {
     this.ui.hideStageClear();
+    // The stage-one clear sequence runs in boss-explosion mode. Explicitly
+    // return to the normal gameplay state before handing control to stage 2.
+    this.state.mode = "playing";
     this.state.stage = 2;
     this.stageStartedAt = this.state.elapsed;
     this.state.timeLeft = Math.max(this.state.timeLeft, 210);
