@@ -18,6 +18,10 @@ export class PlayerMovement {
   private readonly surfaceNormal = new THREE.Vector3(0, 1, 0);
   private readonly surfaceForward = new THREE.Vector3(0, 0, 1);
   private readonly surfaceRight = new THREE.Vector3(1, 0, 0);
+  private readonly safeSurfacePosition = new THREE.Vector3();
+  private readonly safeSurfaceNormal = new THREE.Vector3(0, 1, 0);
+  private readonly safeSurfaceForward = new THREE.Vector3(0, 0, 1);
+  private surfaceAirTime = 0;
   private readonly raycaster = new THREE.Raycaster();
   private surfaces: THREE.Object3D[] = [];
 
@@ -30,6 +34,7 @@ export class PlayerMovement {
     this.forwardVelocity = 0;
     this.strafeVelocity = 0;
     this.grounded = true;
+    this.surfaceAirTime = 0;
   }
 
   enterSurfaceMode(surfaces: THREE.Object3D[], start: THREE.Vector3, normal: THREE.Vector3, forward: THREE.Vector3): void {
@@ -45,6 +50,10 @@ export class PlayerMovement {
     this.forwardVelocity = 0;
     this.strafeVelocity = 0;
     this.grounded = true;
+    this.safeSurfacePosition.copy(this.surfacePosition);
+    this.safeSurfaceNormal.copy(this.surfaceNormal);
+    this.safeSurfaceForward.copy(this.surfaceForward);
+    this.surfaceAirTime = 0;
   }
 
   update(input: InputSnapshot, dt: number, energy: number): { boosting: boolean; energyDelta: number } {
@@ -114,11 +123,15 @@ export class PlayerMovement {
     }
 
     if (!this.grounded) {
+      this.surfaceAirTime += dt;
       this.surfacePosition.addScaledVector(this.surfaceNormal, this.jumpVelocity * dt);
       this.jumpVelocity -= GAME.adhesionGravity * dt;
       if (this.jumpVelocity <= 0) {
         const hit = this.castSurface(this.surfacePosition, this.surfaceNormal.clone().negate(), 10);
-        if (hit) this.attachToHit(hit);
+        if (hit && hit.distance <= 8) this.attachToHit(hit);
+      }
+      if (!this.grounded && (this.surfaceAirTime > 0.85 || this.surfacePosition.distanceTo(this.safeSurfacePosition) > 7)) {
+        this.restoreSafeSurface();
       }
       this.z = this.surfacePosition.z;
       return result;
@@ -162,7 +175,7 @@ export class PlayerMovement {
     if (!hit) {
       hit = this.castSurface(candidate.clone().addScaledVector(this.surfaceNormal, 2.5), this.surfaceNormal.clone().negate(), 7);
     }
-    if (hit) this.attachToHit(hit, moveDirection);
+    if (hit && hit.point.distanceTo(candidate) <= 6.5) this.attachToHit(hit, moveDirection);
     else {
       // Never advance into an unverified volume; this prevents thin/overlapping boxes from being penetrated.
       this.forwardVelocity *= 0.2;
@@ -225,6 +238,22 @@ export class PlayerMovement {
     this.surfaceRight.crossVectors(this.surfaceNormal, this.surfaceForward).normalize();
     this.surfacePosition.copy(hit.point).addScaledVector(this.surfaceNormal, GAME.playerClearance);
     this.jumpVelocity = 0;
+    this.grounded = true;
+    this.surfaceAirTime = 0;
+    this.safeSurfacePosition.copy(this.surfacePosition);
+    this.safeSurfaceNormal.copy(this.surfaceNormal);
+    this.safeSurfaceForward.copy(this.surfaceForward);
+  }
+
+  private restoreSafeSurface(): void {
+    this.surfacePosition.copy(this.safeSurfacePosition);
+    this.surfaceNormal.copy(this.safeSurfaceNormal);
+    this.surfaceForward.copy(this.safeSurfaceForward);
+    this.surfaceRight.crossVectors(this.surfaceNormal, this.surfaceForward).normalize();
+    this.jumpVelocity = 0;
+    this.forwardVelocity = 0;
+    this.strafeVelocity = 0;
+    this.surfaceAirTime = 0;
     this.grounded = true;
   }
 }
