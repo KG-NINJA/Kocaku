@@ -1,0 +1,193 @@
+import * as THREE from "three";
+import { GAME } from "../config/gameConfig";
+import { Renderer } from "../graphics/Renderer";
+import { PostProcessing } from "../graphics/PostProcessing";
+import { ParticleSystem } from "../graphics/ParticleSystem";
+import { VectorEffects } from "../graphics/VectorEffects";
+import { AudioManager } from "../audio/AudioManager";
+import { UIManager } from "../ui/UIManager";
+import { InputManager } from "./InputManager";
+import { Player } from "./Player";
+import { CameraController } from "./CameraController";
+import { StageManager } from "./StageManager";
+import { EnemyManager } from "./EnemyManager";
+import { ProjectileManager } from "./ProjectileManager";
+import { PlayerWeapon } from "./PlayerWeapon";
+import { ScanSystem } from "./ScanSystem";
+import { CollisionManager } from "./CollisionManager";
+import { createInitialState } from "./GameState";
+import { ScoreSystem } from "./ScoreSystem";
+
+export class Game {
+  private readonly scene = new THREE.Scene();
+  private readonly camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 340);
+  private readonly renderer: Renderer;
+  private readonly post: PostProcessing;
+  private readonly input: InputManager;
+  private readonly player: Player;
+  private readonly cameraController: CameraController;
+  private readonly enemies: EnemyManager;
+  private readonly projectiles: ProjectileManager;
+  private readonly weapon = new PlayerWeapon();
+  private readonly scan: ScanSystem;
+  private readonly particles: ParticleSystem;
+  private readonly effects: VectorEffects;
+  private readonly collision = new CollisionManager();
+  private readonly state = createInitialState();
+  private readonly scores = new ScoreSystem(this.state);
+  private previousTime = performance.now();
+  private animationFrame = 0;
+  private running = true;
+  private wasBoosting = false;
+
+  constructor(
+    canvas: HTMLCanvasElement,
+    private readonly ui: UIManager,
+    private readonly audio: AudioManager,
+    private readonly lowPerformance: boolean
+  ) {
+    this.scene.fog = new THREE.FogExp2(0x020a0d, lowPerformance ? 0.012 : 0.008);
+    this.renderer = new Renderer(canvas, lowPerformance);
+    this.post = new PostProcessing(this.renderer.instance, this.scene, this.camera, lowPerformance);
+    this.input = new InputManager(canvas);
+    this.input.bindTouchZones();
+    new StageManager(this.scene, lowPerformance);
+    this.player = new Player(this.scene);
+    this.cameraController = new CameraController(this.camera);
+    this.cameraController.reset(this.player);
+    this.enemies = new EnemyManager(this.scene, lowPerformance);
+    this.projectiles = new ProjectileManager(this.scene);
+    this.scan = new ScanSystem(this.scene);
+    this.particles = new ParticleSystem(this.scene, lowPerformance);
+    this.effects = new VectorEffects(this.scene);
+    addEventListener("resize", this.onResize, { passive: true });
+    addEventListener("keydown", this.onEscape);
+    document.addEventListener("visibilitychange", this.onVisibility);
+    this.animationFrame = requestAnimationFrame(this.loop);
+  }
+
+  async start(): Promise<void> {
+    await this.audio.resume();
+    Object.assign(this.state, createInitialState(), { mode: "playing", timeLeft: GAME.stageTime });
+    this.player.reset();
+    this.enemies.reset();
+    this.projectiles.clear();
+    this.weapon.lockTarget = undefined;
+    this.cameraController.reset(this.player);
+    this.previousTime = performance.now();
+    this.ui.showGame(this.input.isTouch);
+    this.audio.play("start");
+  }
+
+  dispose(): void {
+    this.running = false;
+    cancelAnimationFrame(this.animationFrame);
+    removeEventListener("resize", this.onResize);
+    removeEventListener("keydown", this.onEscape);
+    document.removeEventListener("visibilitychange", this.onVisibility);
+    this.input.dispose();
+    this.post.dispose();
+    this.renderer.dispose();
+  }
+
+  private loop = (time: number): void => {
+    if (!this.running) return;
+    const dt = Math.min(0.05, Math.max(0, (time - this.previousTime) / 1000));
+    this.previousTime = time;
+    if (this.state.mode === "playing") this.update(dt);
+    this.post.render(dt, this.state.elapsed);
+    this.input.endFrame();
+    this.animationFrame = requestAnimationFrame(this.loop);
+  };
+
+  private update(dt: number): void {
+    const input = this.input.update();
+    this.player.update(input, dt);
+    this.collision.resolvePlayer(this.player);
+
+    const previousLock = this.weapon.lockTarget;
+    if (input.lock) this.weapon.lockTarget = this.enemies.findLockTarget(this.camera, this.player);
+    else this.weapon.lockTarget = undefined;
+    if (!previousLock && this.weapon.lockTarget) this.audio.play("lock");
+
+    this.weapon.update(dt, input.fire, input.lock, this.player, this.cameraController,
+      this.projectiles, this.effects, () => {
+        this.state.shots += 1;
+        this.audio.play("shot");
+      });
+
+    if (input.scanPressed && this.scan.tryActivate(this.player, this.enemies.enemies)) {
+      this.audio.play("scan");
+      this.post.triggerScan();
+      this.ui.triggerScan();
+    }
+    this.scan.update(dt, this.player);
+
+    if (this.state.elapsed > 8) {
+      this.enemies.update(dt, this.state.elapsed, this.player, (origin, direction, damage) => {
+        this.projectiles.spawn(origin, direction, true, damage);
+      });
+    }
+    this.projectiles.update(dt, this.player, this.enemies.enemies, (hit) => {
+      this.particles.burst(hit.position, !hit.playerHit);
+      if (hit.playerHit) {
+        this.audio.play("hit");
+        this.post.triggerDamage();
+      } else if (hit.enemy) {
+        this.state.hits += 1;
+        if (!hit.enemy.alive) {
+          this.scores.enemyDestroyed(hit.enemy);
+          this.audio.play("destroy");
+          this.particles.burst(hit.position, true);
+        }
+      }
+    });
+
+    if (this.player.boosting && !this.wasBoosting) this.audio.play("boost");
+    this.wasBoosting = this.player.boosting;
+    this.particles.update(dt);
+    this.effects.update(dt);
+    this.cameraController.update(this.player, dt, input.aimX, input.aimY, this.weapon.lockTarget?.group);
+    this.state.elapsed += dt;
+    this.state.timeLeft = Math.max(0, this.state.timeLeft - dt);
+    this.ui.update(this.state, this.player, this.scan, this.enemies.aliveCount, Boolean(this.weapon.lockTarget), dt);
+
+    if (!this.enemies.boss.alive) this.finish(true);
+    else if (this.player.health <= 0 || this.state.timeLeft <= 0) this.finish(false);
+  }
+
+  private finish(clear: boolean): void {
+    if (this.state.mode !== "playing") return;
+    this.state.mode = clear ? "clear" : "gameover";
+    if (clear) {
+      this.scores.finalBonus();
+      this.audio.play("clear");
+    } else {
+      this.audio.play("warning");
+    }
+    if (document.pointerLockElement) void document.exitPointerLock();
+    this.ui.showResult(clear, this.state, this.scores);
+  }
+
+  private onResize = (): void => {
+    this.camera.aspect = innerWidth / innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.resize();
+    this.post.resize();
+  };
+
+  private onEscape = (event: KeyboardEvent): void => {
+    if (event.code !== "Escape" || !["playing", "paused"].includes(this.state.mode)) return;
+    this.state.mode = this.state.mode === "playing" ? "paused" : "playing";
+    this.ui.showPause(this.state.mode === "paused");
+    this.previousTime = performance.now();
+  };
+
+  private onVisibility = (): void => {
+    if (document.hidden && this.state.mode === "playing") {
+      this.state.mode = "paused";
+      this.ui.showPause(true);
+    }
+    this.previousTime = performance.now();
+  };
+}

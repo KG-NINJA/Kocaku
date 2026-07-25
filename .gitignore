@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.playwright-cli/
+vite.out.log
+vite.err.log
+preview.out.log
+preview.err.log
