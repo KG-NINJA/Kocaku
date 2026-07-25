@@ -21,6 +21,8 @@ import { ScoreSystem } from "./ScoreSystem";
 export class Game {
   private bossExplosionTime = 0;
   private bossExplosionLargeTriggered = false;
+  private bossExplosionClearShown = false;
+  private bossExplosionStage: 1 | 2 = 1;
   private readonly bossExplosionOrigin = new THREE.Vector3();
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 340);
@@ -157,7 +159,7 @@ export class Game {
           this.scores.enemyDestroyed(hit.enemy);
           this.audio.play("destroy");
           this.particles.burst(hit.position, true);
-          if (hit.enemy.kind === "boss" && this.state.stage === 2) this.beginBossExplosion();
+          if (hit.enemy.kind === "boss") this.beginBossExplosion();
         }
       }
     });
@@ -172,13 +174,13 @@ export class Game {
     this.ui.update(this.state, this.player, this.scan, this.enemies.aliveCount, Boolean(this.weapon.lockTarget), dt);
 
     if (!this.enemies.boss.alive) {
-      if (this.state.stage === 1) this.advanceToStage2();
-      else this.beginBossExplosion();
+      this.beginBossExplosion();
     }
     else if (this.player.health <= 0 || this.state.timeLeft <= 0) this.finish(false);
   }
 
   private advanceToStage2(): void {
+    this.ui.hideStageClear();
     this.state.stage = 2;
     this.stageStartedAt = this.state.elapsed;
     this.state.timeLeft = Math.max(this.state.timeLeft, 210);
@@ -198,6 +200,7 @@ export class Game {
     this.projectiles.setStageMode("surface");
     this.weapon.lockTarget = undefined;
     this.cameraController.reset(this.player);
+    this.enemies.boss.group.scale.setScalar(1);
     this.ui.announceStage(2);
     this.post.triggerScan();
     this.audio.play("start");
@@ -208,10 +211,14 @@ export class Game {
     this.state.mode = "boss-explosion";
     this.bossExplosionTime = 0;
     this.bossExplosionLargeTriggered = false;
+    this.bossExplosionClearShown = false;
+    this.bossExplosionStage = this.state.stage;
     this.enemies.boss.getPosition(this.bossExplosionOrigin);
+    this.enemies.boss.group.visible = true;
+    this.enemies.boss.group.scale.setScalar(1);
     this.particles.startBossExplosion(this.bossExplosionOrigin);
     this.audio.play("destroy");
-    this.ui.announceBossExplosion();
+    this.ui.announceBossExplosion(this.bossExplosionStage);
     this.weapon.lockTarget = undefined;
     this.projectiles.clear();
   }
@@ -221,14 +228,31 @@ export class Game {
     this.particles.update(dt);
     this.effects.update(dt);
     this.cameraController.update(this.player, dt, 0, 0);
+    this.ui.update(this.state, this.player, this.scan, this.enemies.aliveCount, false, dt);
+
+    if (!this.bossExplosionLargeTriggered) {
+      const pulse = 1 + Math.sin(this.bossExplosionTime * 38) * 0.045;
+      this.enemies.boss.group.scale.setScalar(pulse);
+      this.enemies.boss.group.rotation.z += dt * (2.2 + this.bossExplosionTime * 3);
+    }
 
     if (!this.bossExplosionLargeTriggered && this.bossExplosionTime >= 0.95) {
       this.bossExplosionLargeTriggered = true;
+      this.enemies.boss.group.visible = false;
       this.post.triggerExplosion();
       this.audio.play("bigExplosion");
       this.effects.impact(this.bossExplosionOrigin, 0xffffff, 3);
+      this.ui.triggerBossBlast();
     }
-    if (this.bossExplosionTime >= 2.35) this.finish(true);
+    if (!this.bossExplosionClearShown && this.bossExplosionTime >= 1.35) {
+      this.bossExplosionClearShown = true;
+      this.ui.showStageClear(this.bossExplosionStage);
+      this.audio.play("clear");
+    }
+    if (this.bossExplosionTime >= 3.2) {
+      if (this.bossExplosionStage === 1) this.advanceToStage2();
+      else this.finish(true);
+    }
   }
 
   private finish(clear: boolean): void {
@@ -256,7 +280,7 @@ export class Game {
       this.advanceToStage2();
       return;
     }
-    if (import.meta.env.DEV && event.code === "Digit9" && this.state.mode === "playing" && this.state.stage === 2) {
+    if (import.meta.env.DEV && event.code === "Digit9" && this.state.mode === "playing" && this.enemies.boss.alive) {
       this.enemies.boss.alive = false;
       this.enemies.boss.group.visible = false;
       this.beginBossExplosion();

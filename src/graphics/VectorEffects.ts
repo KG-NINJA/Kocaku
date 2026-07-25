@@ -42,14 +42,15 @@ export class VectorEffects {
   }
 
   update(dt: number): void {
-    if (!this.muzzleFlash) return;
-    this.life -= dt;
-    (this.muzzleFlash.material as THREE.LineBasicMaterial).opacity = Math.max(0, this.life / 0.08);
-    if (this.life <= 0) {
-      this.scene.remove(this.muzzleFlash);
-      this.muzzleFlash.geometry.dispose();
-      (this.muzzleFlash.material as THREE.Material).dispose();
-      this.muzzleFlash = undefined;
+    if (this.muzzleFlash) {
+      this.life -= dt;
+      (this.muzzleFlash.material as THREE.LineBasicMaterial).opacity = Math.max(0, this.life / 0.08);
+      if (this.life <= 0) {
+        this.scene.remove(this.muzzleFlash);
+        this.muzzleFlash.geometry.dispose();
+        (this.muzzleFlash.material as THREE.Material).dispose();
+        this.muzzleFlash = undefined;
+      }
     }
     for (let i = this.impacts.length - 1; i >= 0; i -= 1) {
       const impact = this.impacts[i];

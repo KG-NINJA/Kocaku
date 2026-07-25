@@ -60,6 +60,11 @@ export class Player {
     this.movement.reset();
     this.movement.getPosition(this.group.position);
     this.group.quaternion.copy(this.movement.getOrientation());
+    this.walkTime = 0;
+    this.legs.forEach((leg) => {
+      leg.rotation.set(0, 0, 0);
+      leg.position.y = 0.25;
+    });
   }
 
   update(input: InputSnapshot, dt: number): void {
@@ -68,12 +73,25 @@ export class Player {
     this.energy = THREE.MathUtils.clamp(this.energy + result.energyDelta, 0, GAME.maxEnergy);
     this.movement.getPosition(this.group.position);
     this.group.quaternion.slerp(this.movement.getOrientation(), 1 - Math.exp(-10 * dt));
-    this.walkTime += dt * (2 + Math.abs(this.movement.forwardVelocity) * 0.45);
-    const travel = Math.min(1, Math.abs(this.movement.forwardVelocity) / GAME.walkSpeed);
+    const forwardSpeed = this.movement.forwardVelocity;
+    const strafeSpeed = this.movement.strafeVelocity;
+    const planarSpeed = Math.hypot(forwardSpeed, strafeSpeed);
+    const walking = this.movement.grounded && planarSpeed > 0.15 && !this.boosting;
+    if (walking) this.walkTime += planarSpeed * dt * 0.78;
+    const travel = walking ? Math.min(1, planarSpeed / GAME.walkSpeed) : 0;
+    const strafeDirection = planarSpeed > 0.01 ? strafeSpeed / planarSpeed : 0;
+    const poseBlend = 1 - Math.exp(-14 * dt);
     this.legs.forEach((leg, index) => {
-      const phase = this.walkTime + (index % 2 === 0 ? 0 : Math.PI);
-      leg.rotation.x = this.boosting ? 0.85 : Math.sin(phase) * 0.32 * travel;
-      leg.position.y = this.boosting ? 0.22 : 0;
+      // Four-legged machines use diagonal pairs: front-left with rear-right.
+      const diagonalPhase = index === 0 || index === 3 ? 0 : Math.PI;
+      const wave = Math.sin(this.walkTime + diagonalPhase);
+      const lift = Math.max(0, Math.sin(this.walkTime + diagonalPhase + Math.PI * 0.45));
+      const targetX = this.boosting ? 0.85 : wave * 0.38 * travel;
+      const targetZ = this.boosting ? 0 : -wave * 0.24 * travel * strafeDirection;
+      const targetY = this.boosting ? 0.22 : 0.25 + lift * 0.13 * travel;
+      leg.rotation.x = THREE.MathUtils.lerp(leg.rotation.x, targetX, poseBlend);
+      leg.rotation.z = THREE.MathUtils.lerp(leg.rotation.z, targetZ, poseBlend);
+      leg.position.y = THREE.MathUtils.lerp(leg.position.y, targetY, poseBlend);
     });
   }
 

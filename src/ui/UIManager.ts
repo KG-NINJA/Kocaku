@@ -35,6 +35,7 @@ export class UIManager {
   private readonly warning = required<HTMLElement>("#warning");
   private readonly fps = required<HTMLElement>("#fps");
   private readonly scanFlash = required<HTMLElement>("#scan-flash");
+  private readonly stageClearBanner = required<HTMLElement>("#stage-clear-banner");
   private frameCount = 0;
   private fpsTime = 0;
   private announcement = "";
@@ -44,6 +45,7 @@ export class UIManager {
     this.title.classList.add("hidden");
     this.result.classList.add("hidden");
     this.pause.classList.add("hidden");
+    this.stageClearBanner.classList.add("hidden");
     this.hud.classList.remove("hidden");
     this.touchControls.classList.toggle("hidden", !touch);
   }
@@ -94,12 +96,27 @@ export class UIManager {
     this.announcementTime = 4;
   }
 
-  announceBossExplosion(): void {
-    this.announcement = "DEFENSE CORE // DETONATION";
-    this.announcementTime = 2.3;
+  announceBossExplosion(stage: number): void {
+    this.announcement = stage === 1 ? "STAGE 1 BOSS // CORE COLLAPSE" : "DEFENSE CORE // DETONATION";
+    this.announcementTime = 3.2;
     this.scanFlash.classList.remove("boss-blast");
+  }
+
+  triggerBossBlast(): void {
     void this.scanFlash.offsetWidth;
     this.scanFlash.classList.add("boss-blast");
+  }
+
+  showStageClear(stage: number): void {
+    const title = this.stageClearBanner.querySelector("strong");
+    if (title) title.textContent = `STAGE ${stage} CLEAR`;
+    this.stageClearBanner.classList.add("hidden");
+    void this.stageClearBanner.offsetWidth;
+    this.stageClearBanner.classList.remove("hidden");
+  }
+
+  hideStageClear(): void {
+    this.stageClearBanner.classList.add("hidden");
   }
 
   showResult(clear: boolean, state: RuntimeState, scores: ScoreSystem): void {

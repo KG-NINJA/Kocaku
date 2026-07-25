@@ -159,21 +159,24 @@ export class PlayerMovement {
       }
     }
 
-    let hit: THREE.Intersection | undefined;
-
-    // When crossing a box edge, probe first. This is important on a wall:
-    // the ordinary adhesion ray would otherwise hit the same wall forever.
-    if (movement.lengthSq() > 0.0001) {
-      const edgeOrigin = candidate.clone().addScaledVector(this.surfaceNormal, 2.8).addScaledVector(moveDirection, 2.8);
-      hit = this.castSurface(edgeOrigin, moveDirection.clone().negate(), 8);
-      if (!hit) {
-        const cornerOrigin = candidate.clone().addScaledVector(this.surfaceNormal, 2.8)
-          .addScaledVector(moveDirection, 4.5);
-        hit = this.castSurface(cornerOrigin, this.surfaceNormal.clone().negate(), 8);
-      }
-    }
-    if (!hit) {
-      hit = this.castSurface(candidate.clone().addScaledVector(this.surfaceNormal, 2.5), this.surfaceNormal.clone().negate(), 7);
+    // Keep adhesion to the current face first. At a convex edge, move the
+    // probe around the corner and cast back toward the newly exposed face.
+    let hit = this.castSurface(
+      candidate.clone().addScaledVector(this.surfaceNormal, 2.5),
+      this.surfaceNormal.clone().negate(),
+      7
+    );
+    if (!hit && movement.lengthSq() > 0.0001) {
+      const edgeDistance = GAME.playerClearance + 0.55;
+      const surfacePoint = candidate.clone().addScaledVector(this.surfaceNormal, -GAME.playerClearance);
+      const edgeOrigin = surfacePoint
+        .addScaledVector(moveDirection, edgeDistance)
+        .addScaledVector(this.surfaceNormal, -edgeDistance);
+      hit = this.castSurface(
+        edgeOrigin,
+        moveDirection.clone().negate(),
+        edgeDistance * 2.5 + movement.length()
+      );
     }
     if (hit && hit.point.distanceTo(candidate) <= 6.5) this.attachToHit(hit, moveDirection);
     else {

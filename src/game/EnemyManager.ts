@@ -30,6 +30,7 @@ export class EnemyManager {
       enemy.alive = true;
       enemy.health = enemy.maxHealth;
       enemy.group.visible = true;
+      enemy.group.scale.setScalar(1);
     });
   }
 
