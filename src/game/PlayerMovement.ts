@@ -146,12 +146,21 @@ export class PlayerMovement {
       }
     }
 
-    let hit = this.castSurface(candidate.clone().addScaledVector(this.surfaceNormal, 2.5), this.surfaceNormal.clone().negate(), 7);
+    let hit: THREE.Intersection | undefined;
 
-    // When crossing a box edge, probe back toward the edge to acquire the adjacent face.
-    if (!hit && movement.lengthSq() > 0.0001) {
-      const edgeOrigin = candidate.clone().addScaledVector(this.surfaceNormal, 1.2).addScaledVector(moveDirection, 2);
-      hit = this.castSurface(edgeOrigin, moveDirection.clone().negate(), 5);
+    // When crossing a box edge, probe first. This is important on a wall:
+    // the ordinary adhesion ray would otherwise hit the same wall forever.
+    if (movement.lengthSq() > 0.0001) {
+      const edgeOrigin = candidate.clone().addScaledVector(this.surfaceNormal, 2.8).addScaledVector(moveDirection, 2.8);
+      hit = this.castSurface(edgeOrigin, moveDirection.clone().negate(), 8);
+      if (!hit) {
+        const cornerOrigin = candidate.clone().addScaledVector(this.surfaceNormal, 2.8)
+          .addScaledVector(moveDirection, 4.5);
+        hit = this.castSurface(cornerOrigin, this.surfaceNormal.clone().negate(), 8);
+      }
+    }
+    if (!hit) {
+      hit = this.castSurface(candidate.clone().addScaledVector(this.surfaceNormal, 2.5), this.surfaceNormal.clone().negate(), 7);
     }
     if (hit) this.attachToHit(hit, moveDirection);
     else {
@@ -209,7 +218,9 @@ export class PlayerMovement {
       nextForward.copy(previousNormal).multiplyScalar(edgeSign).projectOnPlane(nextNormal);
     }
     nextForward.normalize();
-    this.surfaceNormal.lerp(nextNormal, 0.5).normalize();
+    // Snap the physics normal to the newly contacted face; the player/camera
+    // quaternion still interpolates visually, so corners remain comfortable.
+    this.surfaceNormal.copy(nextNormal);
     this.surfaceForward.copy(nextForward).projectOnPlane(this.surfaceNormal).normalize();
     this.surfaceRight.crossVectors(this.surfaceNormal, this.surfaceForward).normalize();
     this.surfacePosition.copy(hit.point).addScaledVector(this.surfaceNormal, GAME.playerClearance);
