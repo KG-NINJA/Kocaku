@@ -12,6 +12,7 @@ interface Projectile {
   damage: number;
   hostile: boolean;
   active: boolean;
+  homingTarget?: Enemy;
 }
 
 export interface HitResult {
@@ -37,15 +38,18 @@ export class ProjectileManager {
     }, 48);
   }
 
-  spawn(origin: THREE.Vector3, direction: THREE.Vector3, hostile: boolean, damage: number): void {
+  spawn(origin: THREE.Vector3, direction: THREE.Vector3, hostile: boolean, damage: number, homingTarget?: Enemy): void {
     const shot = this.pool.acquire();
     shot.active = true;
     shot.hostile = hostile;
+    shot.homingTarget = homingTarget;
     shot.damage = damage;
     shot.lifetime = GAME.projectileLifetime;
     shot.mesh.position.copy(origin);
-    shot.velocity.copy(direction).multiplyScalar(hostile ? GAME.enemyProjectileSpeed : GAME.projectileSpeed);
-    (shot.mesh.material as THREE.MeshBasicMaterial).color.setHex(hostile ? COLORS.enemyProjectile : COLORS.projectile);
+    shot.velocity.copy(direction).multiplyScalar(homingTarget ? GAME.missileSpeed : hostile ? GAME.enemyProjectileSpeed : GAME.projectileSpeed);
+    (shot.mesh.material as THREE.MeshBasicMaterial).color.setHex(
+      hostile ? COLORS.enemyProjectile : homingTarget ? COLORS.target : COLORS.projectile
+    );
     shot.mesh.visible = true;
     this.active.push(shot);
   }
@@ -54,6 +58,10 @@ export class ProjectileManager {
     for (let i = this.active.length - 1; i >= 0; i -= 1) {
       const shot = this.active[i];
       if (!shot) continue;
+      if (shot.homingTarget?.alive) {
+        const desired = shot.homingTarget.getPosition(new THREE.Vector3()).sub(shot.mesh.position).normalize();
+        shot.velocity.lerp(desired.multiplyScalar(GAME.missileSpeed), Math.min(1, dt * 5));
+      }
       shot.mesh.position.addScaledVector(shot.velocity, dt);
       shot.lifetime -= dt;
       let hit = false;
@@ -66,7 +74,7 @@ export class ProjectileManager {
       } else if (!shot.hostile) {
         for (const enemy of enemies) {
           if (!enemy.alive) continue;
-          const threshold = enemy.kind === "boss" ? 30 : 2.4;
+          const threshold = enemy.kind === "boss" ? 30 : shot.homingTarget ? 5.5 : 4.2;
           if (shot.mesh.position.distanceToSquared(enemy.group.position) < threshold) {
             enemy.damage(shot.damage);
             onHit({ enemy, playerHit: false, position: shot.mesh.position.clone(), direction: shot.velocity.clone().normalize() });
