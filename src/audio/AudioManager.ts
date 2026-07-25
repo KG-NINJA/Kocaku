@@ -1,9 +1,10 @@
-export type SoundName = "start" | "shot" | "hit" | "lock" | "scan" | "destroy" | "warning" | "boost" | "clear";
+export type SoundName = "start" | "shot" | "hit" | "impact" | "lock" | "scan" | "destroy" | "warning" | "boost" | "clear";
 
 const SOUND: Record<SoundName, [number, number, number, OscillatorType]> = {
   start: [180, 620, 0.35, "sine"],
   shot: [780, 240, 0.07, "square"],
   hit: [95, 55, 0.2, "sawtooth"],
+  impact: [72, 28, 0.28, "sawtooth"],
   lock: [420, 840, 0.12, "sine"],
   scan: [120, 980, 0.55, "sine"],
   destroy: [180, 42, 0.3, "sawtooth"],

@@ -26,7 +26,7 @@ export class ParticleSystem {
       color: enemy ? COLORS.enemy : COLORS.projectile, transparent: true
     }));
     this.scene.add(line);
-    this.bursts.push({ line, velocities, life: 0.75 });
+    this.bursts.push({ line, velocities, life: 0.34 });
   }
 
   update(dt: number): void {
@@ -42,7 +42,7 @@ export class ParticleSystem {
         attribute.setXYZ(i * 2 + 1, x, y, z);
       }
       attribute.needsUpdate = true;
-      (burst.line.material as THREE.LineBasicMaterial).opacity = Math.max(0, burst.life / 0.75);
+      (burst.line.material as THREE.LineBasicMaterial).opacity = Math.max(0, burst.life / 0.34);
       if (burst.life <= 0) {
         this.scene.remove(burst.line);
         burst.line.geometry.dispose();

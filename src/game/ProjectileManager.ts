@@ -18,6 +18,7 @@ export interface HitResult {
   enemy?: Enemy;
   playerHit: boolean;
   position: THREE.Vector3;
+  direction: THREE.Vector3;
 }
 
 export class ProjectileManager {
@@ -60,7 +61,7 @@ export class ProjectileManager {
       if (radius > GAME.tunnelRadius - 0.15 || shot.mesh.position.z < 0 || shot.mesh.position.z > GAME.tunnelLength) hit = true;
       if (shot.hostile && shot.mesh.position.distanceToSquared(player.group.position) < 1.6) {
         player.damage(shot.damage);
-        onHit({ playerHit: true, position: shot.mesh.position.clone() });
+        onHit({ playerHit: true, position: shot.mesh.position.clone(), direction: shot.velocity.clone().normalize() });
         hit = true;
       } else if (!shot.hostile) {
         for (const enemy of enemies) {
@@ -68,7 +69,7 @@ export class ProjectileManager {
           const threshold = enemy.kind === "boss" ? 30 : 2.4;
           if (shot.mesh.position.distanceToSquared(enemy.group.position) < threshold) {
             enemy.damage(shot.damage);
-            onHit({ enemy, playerHit: false, position: shot.mesh.position.clone() });
+            onHit({ enemy, playerHit: false, position: shot.mesh.position.clone(), direction: shot.velocity.clone().normalize() });
             hit = true;
             break;
           }

@@ -133,6 +133,8 @@ export class Game {
       if (hit.playerHit) {
         this.effects.impact(hit.position, 0xff3157, 1.25);
         this.audio.play("hit");
+        this.audio.play("impact");
+        this.player.knockback(hit.direction);
         this.post.triggerDamage();
       } else if (hit.enemy) {
         this.effects.impact(hit.position, 0xffcf45, hit.enemy.kind === "boss" ? 1.35 : 1);

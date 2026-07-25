@@ -82,6 +82,16 @@ export class Player {
     this.health = Math.max(0, this.health - amount);
   }
 
+  knockback(incomingDirection: THREE.Vector3): void {
+    const tangent = this.movement.getTangent(new THREE.Vector3());
+    this.movement.z = THREE.MathUtils.clamp(this.movement.z - incomingDirection.z * 2.8, 2, GAME.tunnelLength - 5);
+    this.movement.theta -= tangent.dot(incomingDirection) * 0.12;
+    this.movement.forwardVelocity -= incomingDirection.z * 8;
+    this.movement.strafeVelocity -= tangent.dot(incomingDirection) * 8;
+    this.movement.jumpVelocity = Math.max(this.movement.jumpVelocity, 3.5);
+    this.movement.grounded = false;
+  }
+
   getWorldPosition(target = new THREE.Vector3()): THREE.Vector3 {
     return this.group.getWorldPosition(target);
   }
