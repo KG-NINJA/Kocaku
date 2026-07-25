@@ -7,12 +7,20 @@ interface Burst {
   life: number;
 }
 
+interface BossSequence {
+  origin: THREE.Vector3;
+  time: number;
+  nextSmall: number;
+  largeStarted: boolean;
+}
+
 export class ParticleSystem {
   private readonly bursts: Burst[] = [];
+  private bossSequence?: BossSequence;
   constructor(private readonly scene: THREE.Scene, private readonly lowPerformance: boolean) {}
 
-  burst(position: THREE.Vector3, enemy = true): void {
-    const count = this.lowPerformance ? 10 : 22;
+  burst(position: THREE.Vector3, enemy = true, multiplier = 1): void {
+    const count = (this.lowPerformance ? 10 : 22) * multiplier;
     const positions = new Float32Array(count * 2 * 3);
     const velocities = new Float32Array(count * 3);
     for (let i = 0; i < count; i += 1) {
@@ -29,7 +37,25 @@ export class ParticleSystem {
     this.bursts.push({ line, velocities, life: 0.34 });
   }
 
+  startBossExplosion(position: THREE.Vector3): void {
+    this.bossSequence = { origin: position.clone(), time: 0, nextSmall: 0, largeStarted: false };
+  }
+
   update(dt: number): void {
+    if (this.bossSequence) {
+      const sequence = this.bossSequence;
+      sequence.time += dt;
+      while (sequence.time >= sequence.nextSmall && sequence.nextSmall < 1.05) {
+        const offset = new THREE.Vector3().randomDirection().multiplyScalar(2 + Math.random() * 5);
+        this.burst(sequence.origin.clone().add(offset), true, this.lowPerformance ? 1 : 2);
+        sequence.nextSmall += 0.1;
+      }
+      if (!sequence.largeStarted && sequence.time >= 0.95) {
+        sequence.largeStarted = true;
+        this.burst(sequence.origin, false, this.lowPerformance ? 5 : 10);
+      }
+      if (sequence.time >= 2.2) this.bossSequence = undefined;
+    }
     for (let b = this.bursts.length - 1; b >= 0; b -= 1) {
       const burst = this.bursts[b];
       if (!burst) continue;

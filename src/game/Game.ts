@@ -19,6 +19,9 @@ import { createInitialState } from "./GameState";
 import { ScoreSystem } from "./ScoreSystem";
 
 export class Game {
+  private bossExplosionTime = 0;
+  private bossExplosionLargeTriggered = false;
+  private readonly bossExplosionOrigin = new THREE.Vector3();
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 340);
   private readonly renderer: Renderer;
@@ -99,13 +102,18 @@ export class Game {
     if (!this.running) return;
     const dt = Math.min(0.05, Math.max(0, (time - this.previousTime) / 1000));
     this.previousTime = time;
-    if (this.state.mode === "playing") this.update(dt);
+    if (this.state.mode === "playing" || this.state.mode === "boss-explosion") this.update(dt);
     this.post.render(dt, this.state.elapsed);
     this.input.endFrame();
     this.animationFrame = requestAnimationFrame(this.loop);
   };
 
   private update(dt: number): void {
+    if (this.state.mode === "boss-explosion") {
+      this.updateBossExplosion(dt);
+      return;
+    }
+
     const input = this.input.update();
     this.player.update(input, dt);
     this.collision.resolvePlayer(this.player);
@@ -164,7 +172,7 @@ export class Game {
 
     if (!this.enemies.boss.alive) {
       if (this.state.stage === 1) this.advanceToStage2();
-      else this.finish(true);
+      else this.beginBossExplosion();
     }
     else if (this.player.health <= 0 || this.state.timeLeft <= 0) this.finish(false);
   }
@@ -194,8 +202,36 @@ export class Game {
     this.audio.play("start");
   }
 
-  private finish(clear: boolean): void {
+  private beginBossExplosion(): void {
     if (this.state.mode !== "playing") return;
+    this.state.mode = "boss-explosion";
+    this.bossExplosionTime = 0;
+    this.bossExplosionLargeTriggered = false;
+    this.enemies.boss.getPosition(this.bossExplosionOrigin);
+    this.particles.startBossExplosion(this.bossExplosionOrigin);
+    this.audio.play("destroy");
+    this.ui.announceBossExplosion();
+    this.weapon.lockTarget = undefined;
+    this.projectiles.clear();
+  }
+
+  private updateBossExplosion(dt: number): void {
+    this.bossExplosionTime += dt;
+    this.particles.update(dt);
+    this.effects.update(dt);
+    this.cameraController.update(this.player, dt, 0, 0);
+
+    if (!this.bossExplosionLargeTriggered && this.bossExplosionTime >= 0.95) {
+      this.bossExplosionLargeTriggered = true;
+      this.post.triggerExplosion();
+      this.audio.play("bigExplosion");
+      this.effects.impact(this.bossExplosionOrigin, 0xffffff, 3);
+    }
+    if (this.bossExplosionTime >= 2.35) this.finish(true);
+  }
+
+  private finish(clear: boolean): void {
+    if (this.state.mode !== "playing" && this.state.mode !== "boss-explosion") return;
     this.state.mode = clear ? "clear" : "gameover";
     if (clear) {
       this.scores.finalBonus();
@@ -217,6 +253,12 @@ export class Game {
   private onEscape = (event: KeyboardEvent): void => {
     if (import.meta.env.DEV && event.code === "Digit2" && this.state.mode === "playing" && this.state.stage === 1) {
       this.advanceToStage2();
+      return;
+    }
+    if (import.meta.env.DEV && event.code === "Digit9" && this.state.mode === "playing" && this.state.stage === 2) {
+      this.enemies.boss.alive = false;
+      this.enemies.boss.group.visible = false;
+      this.beginBossExplosion();
       return;
     }
     if (event.code !== "Escape" || !["playing", "paused"].includes(this.state.mode)) return;

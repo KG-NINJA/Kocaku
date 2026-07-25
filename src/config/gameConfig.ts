@@ -27,4 +27,4 @@ export const GAME = {
   maxEnergy: 100
 } as const;
 
-export type GameMode = "title" | "playing" | "paused" | "clear" | "gameover";
+export type GameMode = "title" | "playing" | "boss-explosion" | "paused" | "clear" | "gameover";

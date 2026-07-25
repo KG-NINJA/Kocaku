@@ -11,6 +11,7 @@ const VectorScreenShader = {
     tDiffuse: { value: null },
     time: { value: 0 },
     damage: { value: 0 },
+    explosion: { value: 0 },
     scan: { value: 0 },
     resolution: { value: new THREE.Vector2(1, 1) },
     lowQuality: { value: 0 }
@@ -23,6 +24,7 @@ const VectorScreenShader = {
     uniform sampler2D tDiffuse;
     uniform float time;
     uniform float damage;
+    uniform float explosion;
     uniform float scan;
     uniform float lowQuality;
     uniform vec2 resolution;
@@ -40,6 +42,9 @@ const VectorScreenShader = {
       color += noise + scan * vec3(0.08, 0.2, 0.18);
       color.r += damage * 0.35;
       color *= 1.0 + damage * 0.12;
+      float blast = explosion * explosion;
+      color = mix(color, vec3(0.72, 1.0, 0.96), blast * 0.78);
+      color += vec3(0.18, 0.42, 0.34) * explosion;
       gl_FragColor = vec4(color, 1.0);
     }
   `
@@ -50,6 +55,7 @@ export class PostProcessing {
   private readonly finalPass: ShaderPass;
   private readonly bloom: UnrealBloomPass;
   private damage = 0;
+  private explosion = 0;
   private scan = 0;
 
   constructor(renderer: WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, private readonly lowPerformance: boolean) {
@@ -70,14 +76,17 @@ export class PostProcessing {
 
   render(dt: number, elapsed: number): void {
     this.damage = Math.max(0, this.damage - dt * 2.5);
+    this.explosion = Math.max(0, this.explosion - dt * 1.35);
     this.scan = Math.max(0, this.scan - dt * 1.8);
     this.finalPass.uniforms.time!.value = elapsed;
     this.finalPass.uniforms.damage!.value = this.damage;
+    this.finalPass.uniforms.explosion!.value = this.explosion;
     this.finalPass.uniforms.scan!.value = this.scan;
     this.composer.render(dt);
   }
 
   triggerDamage(): void { this.damage = 1; }
+  triggerExplosion(): void { this.explosion = 1; }
   triggerScan(): void { this.scan = 1; }
 
   resize(): void {

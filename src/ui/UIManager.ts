@@ -94,6 +94,11 @@ export class UIManager {
     this.announcementTime = 4;
   }
 
+  announceBossExplosion(): void {
+    this.announcement = "DEFENSE CORE // DETONATION";
+    this.announcementTime = 2.3;
+  }
+
   showResult(clear: boolean, state: RuntimeState, scores: ScoreSystem): void {
     this.hud.classList.add("hidden");
     this.touchControls.classList.add("hidden");
