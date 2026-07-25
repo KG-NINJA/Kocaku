@@ -17,9 +17,10 @@ export class CameraController {
   reset(player: Player): void {
     const position = player.getWorldPosition();
     const inward = player.movement.getInward();
-    this.camera.position.copy(position).addScaledVector(inward, GAME.cameraHeight).add(new THREE.Vector3(0, 0, -GAME.cameraDistance));
+    const forward = player.movement.getForward();
+    this.camera.position.copy(position).addScaledVector(inward, GAME.cameraHeight).addScaledVector(forward, -GAME.cameraDistance);
     this.up.copy(inward);
-    this.lookTarget.copy(position).add(new THREE.Vector3(0, 0, 8));
+    this.lookTarget.copy(position).addScaledVector(forward, 8);
     this.camera.lookAt(this.lookTarget);
   }
 
@@ -32,22 +33,25 @@ export class CameraController {
     const playerPosition = player.getWorldPosition();
     const inward = player.movement.getInward();
     const tangent = player.movement.getTangent();
+    const forward = player.movement.getForward();
     const speedRatio = Math.min(1, Math.abs(player.movement.forwardVelocity) / GAME.boostSpeed);
     const distance = GAME.cameraDistance + speedRatio * 3;
     this.desired.copy(playerPosition)
       .addScaledVector(inward, GAME.cameraHeight)
       .addScaledVector(tangent, this.aimYaw * 3)
-      .add(new THREE.Vector3(0, 0, -distance));
-    const radial = Math.hypot(this.desired.x, this.desired.y);
-    const maxRadius = GAME.tunnelRadius - 1.3;
-    if (radial > maxRadius) {
-      this.desired.x *= maxRadius / radial;
-      this.desired.y *= maxRadius / radial;
+      .addScaledVector(forward, -distance);
+    if (player.movement.mode === "tunnel") {
+      const radial = Math.hypot(this.desired.x, this.desired.y);
+      const maxRadius = GAME.tunnelRadius - 1.3;
+      if (radial > maxRadius) {
+        this.desired.x *= maxRadius / radial;
+        this.desired.y *= maxRadius / radial;
+      }
     }
     dampVector(this.camera.position, this.desired, 7, dt);
     dampVector(this.up, inward, 3.5, dt).normalize();
 
-    this.lookTarget.copy(playerPosition).add(new THREE.Vector3(0, 0, 10));
+    this.lookTarget.copy(playerPosition).addScaledVector(forward, 10);
     this.lookTarget.addScaledVector(tangent, this.aimYaw * 9);
     this.lookTarget.addScaledVector(inward, -this.aimPitch * 7);
     if (lockTarget) {

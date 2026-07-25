@@ -8,6 +8,7 @@ export interface RuntimeState {
   hits: number;
   timeLeft: number;
   elapsed: number;
+  stage: 1 | 2;
 }
 
 export const createInitialState = (): RuntimeState => ({
@@ -17,5 +18,6 @@ export const createInitialState = (): RuntimeState => ({
   shots: 0,
   hits: 0,
   timeLeft: 180,
-  elapsed: 0
+  elapsed: 0,
+  stage: 1
 });

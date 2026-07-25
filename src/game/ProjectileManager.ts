@@ -25,6 +25,7 @@ export interface HitResult {
 export class ProjectileManager {
   private readonly active: Projectile[] = [];
   private readonly pool: ObjectPool<Projectile>;
+  private stageMode: "tunnel" | "surface" = "tunnel";
 
   constructor(private readonly scene: THREE.Scene) {
     this.pool = new ObjectPool(() => {
@@ -54,6 +55,10 @@ export class ProjectileManager {
     this.active.push(shot);
   }
 
+  setStageMode(mode: "tunnel" | "surface"): void {
+    this.stageMode = mode;
+  }
+
   update(dt: number, player: Player, enemies: Enemy[], onHit: (result: HitResult) => void): void {
     for (let i = this.active.length - 1; i >= 0; i -= 1) {
       const shot = this.active[i];
@@ -65,8 +70,12 @@ export class ProjectileManager {
       shot.mesh.position.addScaledVector(shot.velocity, dt);
       shot.lifetime -= dt;
       let hit = false;
-      const radius = Math.hypot(shot.mesh.position.x, shot.mesh.position.y);
-      if (radius > GAME.tunnelRadius - 0.15 || shot.mesh.position.z < 0 || shot.mesh.position.z > GAME.tunnelLength) hit = true;
+      if (this.stageMode === "tunnel") {
+        const radius = Math.hypot(shot.mesh.position.x, shot.mesh.position.y);
+        if (radius > GAME.tunnelRadius - 0.15 || shot.mesh.position.z < 0 || shot.mesh.position.z > GAME.tunnelLength) hit = true;
+      } else if (Math.abs(shot.mesh.position.x) > 90 || Math.abs(shot.mesh.position.y) > 90 || shot.mesh.position.z < -20 || shot.mesh.position.z > 210) {
+        hit = true;
+      }
       if (shot.hostile && shot.mesh.position.distanceToSquared(player.group.position) < 1.6) {
         player.damage(shot.damage);
         onHit({ playerHit: true, position: shot.mesh.position.clone(), direction: shot.velocity.clone().normalize() });

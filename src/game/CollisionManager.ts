@@ -4,6 +4,7 @@ import type { Player } from "./Player";
 
 export class CollisionManager {
   resolvePlayer(player: Player): void {
+    if (player.movement.mode === "surface") return;
     player.movement.z = THREE.MathUtils.clamp(player.movement.z, 2, GAME.tunnelLength - 4);
     player.movement.radialOffset = THREE.MathUtils.clamp(player.movement.radialOffset, 0, GAME.maxJumpHeight);
   }

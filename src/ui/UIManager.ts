@@ -27,6 +27,7 @@ export class UIManager {
   private readonly energyText = required<HTMLElement>("#energy-text");
   private readonly timer = required<HTMLElement>("#timer");
   private readonly score = required<HTMLElement>("#score");
+  private readonly stageNumber = required<HTMLElement>("#stage-number");
   private readonly enemies = required<HTMLElement>("#enemies");
   private readonly scan = required<HTMLElement>("#scan-status");
   private readonly lock = required<HTMLElement>("#lock-label");
@@ -36,6 +37,8 @@ export class UIManager {
   private readonly scanFlash = required<HTMLElement>("#scan-flash");
   private frameCount = 0;
   private fpsTime = 0;
+  private announcement = "";
+  private announcementTime = 0;
 
   showGame(touch: boolean): void {
     this.title.classList.add("hidden");
@@ -61,12 +64,16 @@ export class UIManager {
     const seconds = totalSeconds % 60;
     this.timer.textContent = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     this.score.textContent = state.score.toString().padStart(6, "0");
+    this.stageNumber.textContent = state.stage.toString();
     this.enemies.textContent = enemyCount.toString();
     this.scan.textContent = scanSystem.cooldown <= 0 ? "READY" : `${scanSystem.cooldown.toFixed(1)}s`;
     this.lock.textContent = locked ? "TARGET LOCKED" : "NO LOCK";
     this.lock.classList.toggle("active", locked);
     this.crosshair.classList.toggle("locked", locked);
-    this.warning.textContent = healthPercent <= 25 ? "WARNING // STRUCTURAL FAILURE" : "";
+    this.announcementTime = Math.max(0, this.announcementTime - dt);
+    this.warning.textContent = this.announcementTime > 0
+      ? this.announcement
+      : healthPercent <= 25 ? "WARNING // STRUCTURAL FAILURE" : "";
     this.frameCount += 1;
     this.fpsTime += dt;
     if (this.fpsTime >= 0.5) {
@@ -80,6 +87,11 @@ export class UIManager {
     this.scanFlash.classList.remove("pulse");
     void this.scanFlash.offsetWidth;
     this.scanFlash.classList.add("pulse");
+  }
+
+  announceStage(stage: number): void {
+    this.announcement = stage === 2 ? "STAGE 2 // SURFACE COMPLEX" : `STAGE ${stage}`;
+    this.announcementTime = 4;
   }
 
   showResult(clear: boolean, state: RuntimeState, scores: ScoreSystem): void {

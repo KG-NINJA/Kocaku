@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { COLORS } from "../config/graphicsConfig";
 import { GAME } from "../config/gameConfig";
-import { orientToSurface } from "../utils/MathUtils";
 import type { InputSnapshot } from "./InputManager";
 import { PlayerMovement } from "./PlayerMovement";
 
@@ -60,7 +59,7 @@ export class Player {
     this.energy = GAME.maxEnergy;
     this.movement.reset();
     this.movement.getPosition(this.group.position);
-    orientToSurface(this.group, this.movement.theta, 1);
+    this.group.quaternion.copy(this.movement.getOrientation());
   }
 
   update(input: InputSnapshot, dt: number): void {
@@ -68,7 +67,7 @@ export class Player {
     this.boosting = result.boosting;
     this.energy = THREE.MathUtils.clamp(this.energy + result.energyDelta, 0, GAME.maxEnergy);
     this.movement.getPosition(this.group.position);
-    orientToSurface(this.group, this.movement.theta, 1 - Math.exp(-10 * dt));
+    this.group.quaternion.slerp(this.movement.getOrientation(), 1 - Math.exp(-10 * dt));
     this.walkTime += dt * (2 + Math.abs(this.movement.forwardVelocity) * 0.45);
     const travel = Math.min(1, Math.abs(this.movement.forwardVelocity) / GAME.walkSpeed);
     this.legs.forEach((leg, index) => {
@@ -83,13 +82,7 @@ export class Player {
   }
 
   knockback(incomingDirection: THREE.Vector3): void {
-    const tangent = this.movement.getTangent(new THREE.Vector3());
-    this.movement.z = THREE.MathUtils.clamp(this.movement.z - incomingDirection.z * 2.8, 2, GAME.tunnelLength - 5);
-    this.movement.theta -= tangent.dot(incomingDirection) * 0.12;
-    this.movement.forwardVelocity -= incomingDirection.z * 8;
-    this.movement.strafeVelocity -= tangent.dot(incomingDirection) * 8;
-    this.movement.jumpVelocity = Math.max(this.movement.jumpVelocity, 3.5);
-    this.movement.grounded = false;
+    this.movement.knockback(incomingDirection);
   }
 
   getWorldPosition(target = new THREE.Vector3()): THREE.Vector3 {

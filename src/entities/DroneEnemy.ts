@@ -24,6 +24,12 @@ export class DroneEnemy extends Enemy {
     this.group.position.copy(position);
   }
 
+  override relocate(position: THREE.Vector3): void {
+    this.basePosition.copy(position);
+    this.group.position.copy(position);
+    this.group.quaternion.identity();
+  }
+
   update(dt: number, elapsed: number, player: Player, shoot: EnemyShotCallback): void {
     if (!this.alive) return;
     this.tickReveal(dt);

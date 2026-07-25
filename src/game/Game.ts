@@ -26,6 +26,7 @@ export class Game {
   private readonly input: InputManager;
   private readonly player: Player;
   private readonly cameraController: CameraController;
+  private readonly stage: StageManager;
   private readonly enemies: EnemyManager;
   private readonly projectiles: ProjectileManager;
   private readonly weapon = new PlayerWeapon();
@@ -39,6 +40,7 @@ export class Game {
   private animationFrame = 0;
   private running = true;
   private wasBoosting = false;
+  private stageStartedAt = 0;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -51,7 +53,7 @@ export class Game {
     this.post = new PostProcessing(this.renderer.instance, this.scene, this.camera, lowPerformance);
     this.input = new InputManager(canvas);
     this.input.bindTouchZones();
-    new StageManager(this.scene, lowPerformance);
+    this.stage = new StageManager(this.scene, lowPerformance);
     this.player = new Player(this.scene);
     this.cameraController = new CameraController(this.camera);
     this.cameraController.reset(this.player);
@@ -70,10 +72,13 @@ export class Game {
     await this.audio.resume();
     Object.assign(this.state, createInitialState(), { mode: "playing", timeLeft: GAME.stageTime });
     this.player.reset();
+    this.stage.activateTunnel();
     this.enemies.reset();
     this.projectiles.clear();
+    this.projectiles.setStageMode("tunnel");
     this.weapon.lockTarget = undefined;
     this.cameraController.reset(this.player);
+    this.stageStartedAt = 0;
     this.previousTime = performance.now();
     this.ui.showGame(this.input.isTouch);
     this.audio.play("start");
@@ -123,7 +128,8 @@ export class Game {
     }
     this.scan.update(dt, this.player);
 
-    if (this.state.elapsed > 8) {
+    const enemyGracePeriod = this.state.stage === 2 ? 20 : 8;
+    if (this.state.elapsed - this.stageStartedAt > enemyGracePeriod) {
       this.enemies.update(dt, this.state.elapsed, this.player, (origin, direction, damage) => {
         this.projectiles.spawn(origin, direction, true, damage);
       });
@@ -156,8 +162,36 @@ export class Game {
     this.state.timeLeft = Math.max(0, this.state.timeLeft - dt);
     this.ui.update(this.state, this.player, this.scan, this.enemies.aliveCount, Boolean(this.weapon.lockTarget), dt);
 
-    if (!this.enemies.boss.alive) this.finish(true);
+    if (!this.enemies.boss.alive) {
+      if (this.state.stage === 1) this.advanceToStage2();
+      else this.finish(true);
+    }
     else if (this.player.health <= 0 || this.state.timeLeft <= 0) this.finish(false);
+  }
+
+  private advanceToStage2(): void {
+    this.state.stage = 2;
+    this.stageStartedAt = this.state.elapsed;
+    this.state.timeLeft = Math.max(this.state.timeLeft, 210);
+    this.player.health = Math.min(GAME.maxHealth, this.player.health + 40);
+    this.player.energy = GAME.maxEnergy;
+    const surfaces = this.stage.activateBuilding();
+    this.player.movement.enterSurfaceMode(
+      surfaces,
+      this.stage.buildingStart,
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(0, 0, 1)
+    );
+    this.player.movement.getPosition(this.player.group.position);
+    this.player.group.quaternion.copy(this.player.movement.getOrientation());
+    this.enemies.prepareStage2();
+    this.projectiles.clear();
+    this.projectiles.setStageMode("surface");
+    this.weapon.lockTarget = undefined;
+    this.cameraController.reset(this.player);
+    this.ui.announceStage(2);
+    this.post.triggerScan();
+    this.audio.play("start");
   }
 
   private finish(clear: boolean): void {
@@ -181,6 +215,10 @@ export class Game {
   };
 
   private onEscape = (event: KeyboardEvent): void => {
+    if (import.meta.env.DEV && event.code === "Digit2" && this.state.mode === "playing" && this.state.stage === 1) {
+      this.advanceToStage2();
+      return;
+    }
     if (event.code !== "Escape" || !["playing", "paused"].includes(this.state.mode)) return;
     this.state.mode = this.state.mode === "playing" ? "paused" : "playing";
     this.ui.showPause(this.state.mode === "paused");

@@ -33,11 +33,36 @@ export class EnemyManager {
     });
   }
 
+  prepareStage2(): void {
+    this.reset();
+    const turrets = this.enemies.filter((enemy) => enemy.kind === "turret");
+    const drones = this.enemies.filter((enemy) => enemy.kind === "drone");
+    const turretPlacements = [
+      [new THREE.Vector3(-10, 3.8, 35), new THREE.Vector3(0, 1, 0)],
+      [new THREE.Vector3(-21.8, 12, 46), new THREE.Vector3(-1, 0, 0)],
+      [new THREE.Vector3(14, 32.8, 86), new THREE.Vector3(0, 1, 0)],
+      [new THREE.Vector3(22.8, 16, 98), new THREE.Vector3(1, 0, 0)],
+      [new THREE.Vector3(-8, 14.8, 128), new THREE.Vector3(0, 1, 0)],
+      [new THREE.Vector3(0, 20.8, 157), new THREE.Vector3(0, 1, 0)],
+      [new THREE.Vector3(-16.8, 10, 164), new THREE.Vector3(-1, 0, 0)]
+    ] as const;
+    turrets.forEach((enemy, index) => {
+      const placement = turretPlacements[index % turretPlacements.length];
+      if (placement) enemy.relocate(placement[0], placement[1]);
+    });
+    const dronePlacements = [
+      new THREE.Vector3(4, 10, 30), new THREE.Vector3(-5, 20, 62), new THREE.Vector3(5, 25, 92),
+      new THREE.Vector3(-12, 18, 118), new THREE.Vector3(10, 26, 142), new THREE.Vector3(0, 28, 158)
+    ];
+    drones.forEach((enemy, index) => enemy.relocate(dronePlacements[index % dronePlacements.length] ?? new THREE.Vector3()));
+    this.boss.relocate(new THREE.Vector3(0, 23, 164));
+  }
+
   update(dt: number, elapsed: number, player: Player, shoot: EnemyShotCallback): void {
     this.enemies.forEach((enemy, index) => {
       if (!enemy.alive) return;
-      const dz = Math.abs(enemy.group.position.z - player.movement.z);
-      if (enemy.kind === "boss" || dz < 80 || index % 3 === Math.floor(elapsed * 10) % 3) {
+      const distance = enemy.group.position.distanceTo(player.group.position);
+      if (enemy.kind === "boss" || distance < 90 || index % 3 === Math.floor(elapsed * 10) % 3) {
         enemy.update(dt, elapsed, player, shoot);
       }
     });

@@ -53,4 +53,9 @@ export abstract class Enemy {
   getPosition(target = new THREE.Vector3()): THREE.Vector3 {
     return this.group.getWorldPosition(target);
   }
+
+  relocate(position: THREE.Vector3, normal = new THREE.Vector3(0, 1, 0)): void {
+    this.group.position.copy(position);
+    this.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal.clone().normalize());
+  }
 }
