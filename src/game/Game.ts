@@ -131,9 +131,11 @@ export class Game {
     this.projectiles.update(dt, this.player, this.enemies.enemies, (hit) => {
       this.particles.burst(hit.position, !hit.playerHit);
       if (hit.playerHit) {
+        this.effects.impact(hit.position, 0xff3157, 1.25);
         this.audio.play("hit");
         this.post.triggerDamage();
       } else if (hit.enemy) {
+        this.effects.impact(hit.position, 0xffcf45, hit.enemy.kind === "boss" ? 1.35 : 1);
         this.state.hits += 1;
         if (!hit.enemy.alive) {
           this.scores.enemyDestroyed(hit.enemy);

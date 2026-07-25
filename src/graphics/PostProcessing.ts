@@ -38,7 +38,8 @@ const VectorScreenShader = {
       float vignette = smoothstep(0.85, 0.18, length(uv - 0.5));
       color *= lines * (0.78 + vignette * 0.28);
       color += noise + scan * vec3(0.08, 0.2, 0.18);
-      color.r += damage * 0.13;
+      color.r += damage * 0.35;
+      color *= 1.0 + damage * 0.12;
       gl_FragColor = vec4(color, 1.0);
     }
   `
