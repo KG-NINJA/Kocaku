@@ -128,7 +128,7 @@ export class Game {
     }
     this.scan.update(dt, this.player);
 
-    const enemyGracePeriod = this.state.stage === 2 ? 20 : 8;
+    const enemyGracePeriod = import.meta.env.DEV && this.state.stage === 2 ? 120 : this.state.stage === 2 ? 20 : 8;
     if (this.state.elapsed - this.stageStartedAt > enemyGracePeriod) {
       this.enemies.update(dt, this.state.elapsed, this.player, (origin, direction, damage) => {
         this.projectiles.spawn(origin, direction, true, damage);

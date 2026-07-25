@@ -128,6 +128,24 @@ export class PlayerMovement {
       .addScaledVector(this.surfaceRight, this.strafeVelocity * dt);
     const candidate = this.surfacePosition.clone().add(movement);
     const moveDirection = movement.lengthSq() > 0.0001 ? movement.clone().normalize() : this.surfaceForward.clone();
+
+    if (movement.lengthSq() > 0.0001) {
+      const obstacleHit = this.castSurface(
+        this.surfacePosition.clone().addScaledVector(this.surfaceNormal, 0.12),
+        moveDirection,
+        movement.length() + GAME.playerClearance + 0.35
+      );
+      if (obstacleHit?.face) {
+        const normalMatrix = new THREE.Matrix3().getNormalMatrix(obstacleHit.object.matrixWorld);
+        const obstacleNormal = obstacleHit.face.normal.clone().applyMatrix3(normalMatrix).normalize();
+        if (obstacleNormal.dot(moveDirection) < -0.15) {
+          this.attachToHit(obstacleHit, moveDirection);
+          this.z = this.surfacePosition.z;
+          return result;
+        }
+      }
+    }
+
     let hit = this.castSurface(candidate.clone().addScaledVector(this.surfaceNormal, 2.5), this.surfaceNormal.clone().negate(), 7);
 
     // When crossing a box edge, probe back toward the edge to acquire the adjacent face.
@@ -135,8 +153,12 @@ export class PlayerMovement {
       const edgeOrigin = candidate.clone().addScaledVector(this.surfaceNormal, 1.2).addScaledVector(moveDirection, 2);
       hit = this.castSurface(edgeOrigin, moveDirection.clone().negate(), 5);
     }
-    if (hit) this.attachToHit(hit);
-    else this.surfacePosition.copy(candidate);
+    if (hit) this.attachToHit(hit, moveDirection);
+    else {
+      // Never advance into an unverified volume; this prevents thin/overlapping boxes from being penetrated.
+      this.forwardVelocity *= 0.2;
+      this.strafeVelocity *= 0.2;
+    }
     this.z = this.surfacePosition.z;
     return result;
   }
@@ -176,12 +198,16 @@ export class PlayerMovement {
     return this.raycaster.intersectObjects(this.surfaces, false)[0];
   }
 
-  private attachToHit(hit: THREE.Intersection): void {
+  private attachToHit(hit: THREE.Intersection, travelDirection?: THREE.Vector3): void {
     if (!hit.face) return;
+    const previousNormal = this.surfaceNormal.clone();
     const normalMatrix = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
     const nextNormal = hit.face.normal.clone().applyMatrix3(normalMatrix).normalize();
     const nextForward = this.surfaceForward.clone().projectOnPlane(nextNormal);
-    if (nextForward.lengthSq() < 0.001) nextForward.copy(this.surfaceRight).projectOnPlane(nextNormal);
+    if (nextForward.lengthSq() < 0.001) {
+      const edgeSign = travelDirection && nextNormal.dot(travelDirection) > 0 ? -1 : 1;
+      nextForward.copy(previousNormal).multiplyScalar(edgeSign).projectOnPlane(nextNormal);
+    }
     nextForward.normalize();
     this.surfaceNormal.lerp(nextNormal, 0.5).normalize();
     this.surfaceForward.copy(nextForward).projectOnPlane(this.surfaceNormal).normalize();
