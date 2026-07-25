@@ -97,6 +97,9 @@ export class UIManager {
   announceBossExplosion(): void {
     this.announcement = "DEFENSE CORE // DETONATION";
     this.announcementTime = 2.3;
+    this.scanFlash.classList.remove("boss-blast");
+    void this.scanFlash.offsetWidth;
+    this.scanFlash.classList.add("boss-blast");
   }
 
   showResult(clear: boolean, state: RuntimeState, scores: ScoreSystem): void {

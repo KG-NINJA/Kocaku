@@ -58,6 +58,8 @@ button:hover { background: #41ffe6; color: #021013; box-shadow: 0 0 26px rgba(65
 #fps { position: absolute; right: 24px; bottom: 20px; color: #527975; font: 10px monospace; }
 #scan-flash { position: fixed; inset: 0; z-index: 4; pointer-events: none; border: 0 solid rgba(65, 255, 230, 0); }
 #scan-flash.pulse { animation: scanFlash .8s ease-out; }
+#scan-flash.boss-blast { background: rgba(190, 255, 246, .92); animation: bossBlast 1.25s ease-out forwards; }
+@keyframes bossBlast { 0% { opacity: 0; } 12% { opacity: 1; } 42% { opacity: .82; } 100% { opacity: 0; } }
 #result-stats { display: grid; grid-template-columns: repeat(2, 160px); gap: 1px; margin: 24px; }
 #result-stats span { padding: 12px; color: #719c98; border: 1px solid rgba(65,255,230,.15); }
 #result-stats b { display: block; color: white; font-size: 22px; }

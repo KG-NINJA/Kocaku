@@ -157,6 +157,7 @@ export class Game {
           this.scores.enemyDestroyed(hit.enemy);
           this.audio.play("destroy");
           this.particles.burst(hit.position, true);
+          if (hit.enemy.kind === "boss" && this.state.stage === 2) this.beginBossExplosion();
         }
       }
     });
