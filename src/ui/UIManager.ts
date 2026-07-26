@@ -92,7 +92,12 @@ export class UIManager {
   }
 
   announceStage(stage: number): void {
-    this.announcement = stage === 2 ? "STAGE 2 // SURFACE COMPLEX" : `STAGE ${stage}`;
+    const labels: Record<number, string> = {
+      2: "STAGE 2 // SURFACE COMPLEX",
+      3: "STAGE 3 // ARMORED CONFLUENCE",
+      4: "STAGE 4 // AIR RAID ZONE",
+    };
+    this.announcement = labels[stage] ?? `STAGE ${stage}`;
     this.announcementTime = 4;
   }
 

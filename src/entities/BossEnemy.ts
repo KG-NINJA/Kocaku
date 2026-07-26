@@ -6,7 +6,7 @@ import { Enemy, type EnemyShotCallback } from "./Enemy";
 
 export class BossEnemy extends Enemy {
   readonly kind = "boss" as const;
-  readonly scoreValue = 5000;
+  readonly scoreValue: number = 5000;
   maxHealth = 240;
   readonly weakpoints: THREE.Mesh[] = [];
   private cooldown = 1;

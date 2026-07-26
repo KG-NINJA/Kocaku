@@ -22,7 +22,7 @@ export class Game {
   private bossExplosionTime = 0;
   private bossExplosionLargeTriggered = false;
   private bossExplosionClearShown = false;
-  private bossExplosionStage: 1 | 2 = 1;
+  private bossExplosionStage: 1 | 2 | 3 | 4 = 1;
   private readonly bossExplosionOrigin = new THREE.Vector3();
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 340);
@@ -147,7 +147,7 @@ export class Game {
     }
     this.scan.update(dt, this.player);
 
-    const enemyGracePeriod = import.meta.env.DEV && this.state.stage === 2 ? 120 : this.state.stage === 2 ? 20 : 8;
+    const enemyGracePeriod = import.meta.env.DEV && this.state.stage >= 2 ? 120 : this.state.stage >= 2 ? 20 : 8;
     if (this.state.elapsed - this.stageStartedAt > enemyGracePeriod) {
       this.enemies.update(dt, this.state.elapsed, this.player, (origin, direction, damage) => {
         this.projectiles.spawn(origin, direction, true, damage);
@@ -199,32 +199,32 @@ export class Game {
     this.hitStop = Math.max(this.hitStop, duration);
   }
 
-  private advanceToStage2(): void {
+  private advanceToNextStage(): void {
     this.ui.hideStageClear();
     // The stage-one clear sequence runs in boss-explosion mode. Explicitly
     // return to the normal gameplay state before handing control to stage 2.
     this.state.mode = "playing";
-    this.state.stage = 2;
+    this.state.stage = (this.state.stage + 1) as 2 | 3 | 4;
     this.stageStartedAt = this.state.elapsed;
-    this.state.timeLeft = Math.max(this.state.timeLeft, 210);
+    this.state.timeLeft = Math.max(this.state.timeLeft, this.state.stage === 2 ? 210 : this.state.stage === 3 ? 240 : 270);
     this.player.health = Math.min(GAME.maxHealth, this.player.health + 40);
     this.player.energy = GAME.maxEnergy;
     const surfaces = this.stage.activateBuilding();
     this.player.movement.enterSurfaceMode(
       surfaces,
-      this.stage.buildingStart,
+      this.stage.getBuildingStart(this.state.stage),
       new THREE.Vector3(0, 1, 0),
       new THREE.Vector3(0, 0, 1)
     );
     this.player.movement.getPosition(this.player.group.position);
     this.player.group.quaternion.copy(this.player.movement.getOrientation());
-    this.enemies.prepareStage2();
+    this.enemies.prepareSurfaceStage(this.state.stage);
     this.projectiles.clear();
     this.projectiles.setStageMode("surface");
     this.weapon.lockTarget = undefined;
     this.cameraController.reset(this.player);
     this.enemies.boss.group.scale.setScalar(1);
-    this.ui.announceStage(2);
+    this.ui.announceStage(this.state.stage);
     this.post.triggerScan();
     this.audio.play("start");
   }
@@ -273,7 +273,7 @@ export class Game {
       this.audio.play("clear");
     }
     if (this.bossExplosionTime >= 3.2) {
-      if (this.bossExplosionStage === 1) this.advanceToStage2();
+      if (this.bossExplosionStage < 4) this.advanceToNextStage();
       else this.finish(true);
     }
   }
@@ -300,7 +300,15 @@ export class Game {
 
   private onEscape = (event: KeyboardEvent): void => {
     if (import.meta.env.DEV && event.code === "Digit2" && this.state.mode === "playing" && this.state.stage === 1) {
-      this.advanceToStage2();
+      this.advanceToNextStage();
+      return;
+    }
+    if (import.meta.env.DEV && event.code === "Digit3" && this.state.mode === "playing" && this.state.stage === 2) {
+      this.advanceToNextStage();
+      return;
+    }
+    if (import.meta.env.DEV && event.code === "Digit4" && this.state.mode === "playing" && this.state.stage === 3) {
+      this.advanceToNextStage();
       return;
     }
     if (import.meta.env.DEV && event.code === "Digit9" && this.state.mode === "playing" && this.enemies.boss.alive) {

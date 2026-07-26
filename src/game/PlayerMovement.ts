@@ -15,6 +15,7 @@ export class PlayerMovement {
   strafeVelocity = 0;
   grounded = true;
   private readonly surfacePosition = new THREE.Vector3();
+  private readonly surfaceAirVelocity = new THREE.Vector3();
   private readonly surfaceNormal = new THREE.Vector3(0, 1, 0);
   private readonly surfaceForward = new THREE.Vector3(0, 0, 1);
   private readonly surfaceRight = new THREE.Vector3(1, 0, 0);
@@ -35,6 +36,7 @@ export class PlayerMovement {
     this.strafeVelocity = 0;
     this.grounded = true;
     this.surfaceAirTime = 0;
+    this.surfaceAirVelocity.set(0, 0, 0);
   }
 
   enterSurfaceMode(surfaces: THREE.Object3D[], start: THREE.Vector3, normal: THREE.Vector3, forward: THREE.Vector3): void {
@@ -47,6 +49,7 @@ export class PlayerMovement {
     this.z = this.surfacePosition.z;
     this.radialOffset = 0;
     this.jumpVelocity = 0;
+    this.surfaceAirVelocity.set(0, 0, 0);
     this.forwardVelocity = 0;
     this.strafeVelocity = 0;
     this.grounded = true;
@@ -98,6 +101,8 @@ export class PlayerMovement {
       this.forwardVelocity += incomingDirection.dot(this.surfaceForward) * 8;
       this.strafeVelocity += incomingDirection.dot(this.surfaceRight) * 8;
       this.jumpVelocity = Math.max(this.jumpVelocity, 3.5);
+      this.surfaceAirVelocity.copy(this.surfaceNormal).multiplyScalar(3.5);
+      this.surfaceAirVelocity.y += 1.5;
       this.grounded = false;
       return;
     }
@@ -138,19 +143,24 @@ export class PlayerMovement {
   private updateSurface(input: InputSnapshot, dt: number, energy: number): { boosting: boolean; energyDelta: number } {
     const result = this.updateVelocity(input, dt, energy);
     if (input.jumpPressed && this.grounded) {
-      this.jumpVelocity = GAME.jumpImpulse * 0.72;
+      this.surfaceAirVelocity.copy(this.surfaceNormal).multiplyScalar(GAME.jumpImpulse * 0.72);
+      // A wall jump also has a small upward component, allowing the player
+      // to arc away from a building and fall onto the base floor below.
+      if (Math.abs(this.surfaceNormal.y) < 0.75) this.surfaceAirVelocity.y += GAME.jumpImpulse * 0.35;
       this.grounded = false;
     }
 
     if (!this.grounded) {
       this.surfaceAirTime += dt;
-      this.surfacePosition.addScaledVector(this.surfaceNormal, this.jumpVelocity * dt);
-      this.jumpVelocity -= GAME.adhesionGravity * dt;
-      if (this.jumpVelocity <= 0) {
-        const hit = this.castSurface(this.surfacePosition, this.surfaceNormal.clone().negate(), 10);
-        if (hit && hit.distance <= 8) this.attachToHit(hit);
+      this.surfacePosition.addScaledVector(this.surfaceAirVelocity, dt);
+      this.surfaceAirVelocity.y -= GAME.adhesionGravity * dt;
+      if (this.surfaceAirVelocity.y <= 0) {
+        const landingDirection = this.surfaceAirVelocity.clone().normalize();
+        const landingFar = Math.abs(this.surfaceNormal.y) < 0.75 ? 16 : 8;
+        const hit = this.castSurface(this.surfacePosition, landingDirection, landingFar);
+        if (hit && hit.point.y <= this.surfacePosition.y + 0.5) this.attachToHit(hit);
       }
-      if (!this.grounded && (this.surfaceAirTime > 0.85 || this.surfacePosition.distanceTo(this.safeSurfacePosition) > 7)) {
+      if (!this.grounded && (this.surfaceAirTime > 1.25 || this.surfacePosition.distanceTo(this.safeSurfacePosition) > 10)) {
         this.restoreSafeSurface();
       }
       this.z = this.surfacePosition.z;
@@ -261,6 +271,7 @@ export class PlayerMovement {
     this.surfaceRight.crossVectors(this.surfaceNormal, this.surfaceForward).normalize();
     this.surfacePosition.copy(hit.point).addScaledVector(this.surfaceNormal, GAME.playerClearance);
     this.jumpVelocity = 0;
+    this.surfaceAirVelocity.set(0, 0, 0);
     this.grounded = true;
     this.surfaceAirTime = 0;
     this.safeSurfacePosition.copy(this.surfacePosition);
@@ -274,6 +285,7 @@ export class PlayerMovement {
     this.surfaceForward.copy(this.safeSurfaceForward);
     this.surfaceRight.crossVectors(this.surfaceNormal, this.surfaceForward).normalize();
     this.jumpVelocity = 0;
+    this.surfaceAirVelocity.set(0, 0, 0);
     this.forwardVelocity = 0;
     this.strafeVelocity = 0;
     this.surfaceAirTime = 0;

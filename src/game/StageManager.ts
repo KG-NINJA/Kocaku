@@ -8,6 +8,12 @@ export class StageManager {
   readonly buildingSurfaces: THREE.Mesh[] = [];
   readonly buildingStart = new THREE.Vector3(0, 3, 8);
 
+  getBuildingStart(stage: 2 | 3 | 4): THREE.Vector3 {
+    if (stage === 3) return new THREE.Vector3(-4, 3, 14);
+    if (stage === 4) return new THREE.Vector3(4, 3, 14);
+    return this.buildingStart.clone();
+  }
+
   constructor(scene: THREE.Scene, lowPerformance: boolean) {
     this.createTunnel(lowPerformance);
     this.createBuildingComplex(lowPerformance);

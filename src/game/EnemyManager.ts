@@ -3,12 +3,15 @@ import { GAME } from "../config/gameConfig";
 import { TurretEnemy } from "../entities/TurretEnemy";
 import { DroneEnemy } from "../entities/DroneEnemy";
 import { BossEnemy } from "../entities/BossEnemy";
+import { TankBossEnemy } from "../entities/TankBossEnemy";
+import { AttackHeliBossEnemy } from "../entities/AttackHeliBossEnemy";
 import type { Enemy, EnemyShotCallback } from "../entities/Enemy";
 import type { Player } from "./Player";
 
 export class EnemyManager {
   readonly enemies: Enemy[] = [];
-  readonly boss: BossEnemy;
+  boss: BossEnemy;
+  private readonly stageBosses: BossEnemy[];
 
   constructor(private readonly scene: THREE.Scene, lowPerformance: boolean) {
     const scale = lowPerformance ? 0.65 : 1;
@@ -21,11 +24,13 @@ export class EnemyManager {
       new THREE.Vector3(-2, -5, 138), new THREE.Vector3(4, 3, 172), new THREE.Vector3(0, -3, 205)
     ];
     drones.slice(0, Math.ceil(drones.length * scale)).forEach((position) => this.add(new DroneEnemy(position)));
-    this.boss = new BossEnemy();
-    this.add(this.boss);
+    this.stageBosses = [new BossEnemy(), new BossEnemy(), new TankBossEnemy(), new AttackHeliBossEnemy()];
+    this.stageBosses.forEach((boss) => this.add(boss));
+    this.boss = this.stageBosses[0]!;
   }
 
   reset(): void {
+    this.boss = this.stageBosses[0]!;
     this.enemies.forEach((enemy) => {
       enemy.resetHitReaction();
       enemy.alive = true;
@@ -35,10 +40,25 @@ export class EnemyManager {
       enemy.group.visible = true;
       enemy.group.scale.setScalar(1);
     });
+    this.stageBosses.forEach((boss) => {
+      if (boss !== this.boss) {
+        boss.alive = false;
+        boss.group.visible = false;
+      }
+    });
   }
 
   prepareStage2(): void {
+    this.prepareSurfaceStage(2);
+  }
+
+  prepareSurfaceStage(stage: 2 | 3 | 4): void {
+    this.boss = this.stageBosses[stage - 1]!;
     this.reset();
+    this.boss = this.stageBosses[stage - 1]!;
+    this.boss.alive = true;
+    this.boss.health = this.boss.maxHealth;
+    this.boss.group.visible = true;
     const turrets = this.enemies.filter((enemy) => enemy.kind === "turret");
     const drones = this.enemies.filter((enemy) => enemy.kind === "drone");
     const turretPlacements = [
@@ -59,7 +79,12 @@ export class EnemyManager {
       new THREE.Vector3(-12, 18, 118), new THREE.Vector3(10, 26, 142), new THREE.Vector3(0, 28, 158)
     ];
     drones.forEach((enemy, index) => enemy.relocate(dronePlacements[index % dronePlacements.length] ?? new THREE.Vector3()));
-    this.boss.relocate(new THREE.Vector3(0, 23, 164));
+    const bossPosition = stage === 2
+      ? new THREE.Vector3(0, 23, 164)
+      : stage === 3
+        ? new THREE.Vector3(-4, 17, 132)
+        : new THREE.Vector3(4, 25, 158);
+    this.boss.relocate(bossPosition);
   }
 
   update(dt: number, elapsed: number, player: Player, shoot: EnemyShotCallback): void {
