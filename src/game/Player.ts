@@ -11,6 +11,9 @@ export class Player {
   health: number = GAME.maxHealth;
   energy: number = GAME.maxEnergy;
   boosting = false;
+  private impactPulse = 0;
+  private impactRoll = 0;
+  private impactPitch = 0;
   private readonly legs: THREE.Group[] = [];
   private walkTime = 0;
 
@@ -61,6 +64,10 @@ export class Player {
     this.movement.getPosition(this.group.position);
     this.group.quaternion.copy(this.movement.getOrientation());
     this.walkTime = 0;
+    this.impactPulse = 0;
+    this.impactRoll = 0;
+    this.impactPitch = 0;
+    this.group.scale.setScalar(1);
     this.legs.forEach((leg) => {
       leg.rotation.set(0, 0, 0);
       leg.position.y = 0.25;
@@ -72,7 +79,19 @@ export class Player {
     this.boosting = result.boosting;
     this.energy = THREE.MathUtils.clamp(this.energy + result.energyDelta, 0, GAME.maxEnergy);
     this.movement.getPosition(this.group.position);
-    this.group.quaternion.slerp(this.movement.getOrientation(), 1 - Math.exp(-10 * dt));
+    this.impactPulse = Math.max(0, this.impactPulse - dt * 8.5);
+    this.impactRoll *= Math.exp(-9 * dt);
+    this.impactPitch *= Math.exp(-9 * dt);
+    const impactOrientation = this.movement.getOrientation().multiply(
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        this.impactPitch * this.impactPulse,
+        0,
+        this.impactRoll * this.impactPulse
+      ))
+    );
+    this.group.quaternion.slerp(impactOrientation, 1 - Math.exp(-10 * dt));
+    const squash = this.impactPulse * 0.1;
+    this.group.scale.set(1 + squash, 1 - squash * 0.75, 1 + squash);
     const forwardSpeed = this.movement.forwardVelocity;
     const strafeSpeed = this.movement.strafeVelocity;
     const planarSpeed = Math.hypot(forwardSpeed, strafeSpeed);
@@ -101,6 +120,19 @@ export class Player {
 
   knockback(incomingDirection: THREE.Vector3): void {
     this.movement.knockback(incomingDirection);
+  }
+
+  registerHit(direction: THREE.Vector3): void {
+    const tangent = this.movement.getTangent();
+    const forward = this.movement.getForward();
+    this.impactPulse = Math.min(1.2, this.impactPulse + 1);
+    this.impactRoll = THREE.MathUtils.clamp(this.impactRoll + tangent.dot(direction) * 0.28, -0.5, 0.5);
+    this.impactPitch = THREE.MathUtils.clamp(this.impactPitch + forward.dot(direction) * 0.22, -0.4, 0.4);
+  }
+
+  pushFromContact(direction: THREE.Vector3, distance: number): void {
+    this.movement.pushFromContact(direction, distance);
+    this.movement.getPosition(this.group.position);
   }
 
   getWorldPosition(target = new THREE.Vector3()): THREE.Vector3 {

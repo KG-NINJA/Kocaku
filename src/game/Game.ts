@@ -46,6 +46,7 @@ export class Game {
   private running = true;
   private wasBoosting = false;
   private stageStartedAt = 0;
+  private hitStop = 0;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -85,6 +86,7 @@ export class Game {
     this.cameraController.reset(this.player);
     this.stageStartedAt = 0;
     this.previousTime = performance.now();
+    this.hitStop = 0;
     this.ui.showGame(this.input.isTouch);
     this.audio.play("start");
   }
@@ -104,6 +106,13 @@ export class Game {
     if (!this.running) return;
     const dt = Math.min(0.05, Math.max(0, (time - this.previousTime) / 1000));
     this.previousTime = time;
+    if (this.hitStop > 0 && (this.state.mode === "playing" || this.state.mode === "boss-explosion")) {
+      this.hitStop = Math.max(0, this.hitStop - dt);
+      this.post.render(dt * 0.2, this.state.elapsed);
+      this.input.endFrame();
+      this.animationFrame = requestAnimationFrame(this.loop);
+      return;
+    }
     if (this.state.mode === "playing" || this.state.mode === "boss-explosion") this.update(dt);
     this.post.render(dt, this.state.elapsed);
     this.input.endFrame();
@@ -151,9 +160,16 @@ export class Game {
         this.audio.play("hit");
         this.audio.play("impact");
         this.player.knockback(hit.direction);
+        this.player.registerHit(hit.direction);
+        this.cameraController.impact(hit.direction, 0.42);
+        this.triggerHitStop(0.075);
         this.post.triggerDamage();
       } else if (hit.enemy) {
         this.effects.impact(hit.position, 0xffcf45, hit.enemy.kind === "boss" ? 1.35 : 1);
+        const impactForce = hit.enemy.kind === "boss" ? 1.8 : hit.enemy.kind === "turret" ? 3.2 : 2.5;
+        hit.enemy.registerHit(hit.direction, impactForce);
+        this.audio.play("armorHit");
+        this.triggerHitStop(hit.enemy.kind === "boss" ? 0.1 : 0.06);
         this.state.hits += 1;
         if (!hit.enemy.alive) {
           this.scores.enemyDestroyed(hit.enemy);
@@ -177,6 +193,10 @@ export class Game {
       this.beginBossExplosion();
     }
     else if (this.player.health <= 0 || this.state.timeLeft <= 0) this.finish(false);
+  }
+
+  private triggerHitStop(duration: number): void {
+    this.hitStop = Math.max(this.hitStop, duration);
   }
 
   private advanceToStage2(): void {

@@ -107,6 +107,23 @@ export class PlayerMovement {
     this.grounded = false;
   }
 
+  pushFromContact(direction: THREE.Vector3, distance: number): void {
+    const contactDirection = direction.clone().projectOnPlane(this.getInward()).normalize();
+    if (contactDirection.lengthSq() < 0.001) return;
+    if (this.mode === "surface") {
+      this.surfacePosition.addScaledVector(contactDirection, distance);
+      this.safeSurfacePosition.copy(this.surfacePosition);
+      this.forwardVelocity += contactDirection.dot(this.surfaceForward) * distance * 5;
+      this.strafeVelocity += contactDirection.dot(this.surfaceRight) * distance * 5;
+      return;
+    }
+    const radius = GAME.tunnelRadius - GAME.playerClearance - this.radialOffset;
+    this.z = THREE.MathUtils.clamp(this.z + contactDirection.z * distance, 2, GAME.tunnelLength - 5);
+    this.theta += this.getTangent().dot(contactDirection) * distance / Math.max(1, radius);
+    this.forwardVelocity += contactDirection.z * distance * 5;
+    this.strafeVelocity += this.getTangent().dot(contactDirection) * distance * 5;
+  }
+
   private updateTunnel(input: InputSnapshot, dt: number, energy: number): { boosting: boolean; energyDelta: number } {
     const result = this.updateVelocity(input, dt, energy);
     this.z = THREE.MathUtils.clamp(this.z + this.forwardVelocity * dt, 2, GAME.tunnelLength - 5);

@@ -11,10 +11,13 @@ export class CameraController {
   private readonly targetQuaternion = new THREE.Quaternion();
   private aimYaw = 0;
   private aimPitch = 0;
+  private readonly impactAxis = new THREE.Vector3();
+  private impactShake = 0;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
   reset(player: Player): void {
+    this.impactShake = 0;
     const position = player.getWorldPosition();
     const inward = player.movement.getInward();
     const forward = player.movement.getForward();
@@ -25,6 +28,7 @@ export class CameraController {
   }
 
   update(player: Player, dt: number, aimX: number, aimY: number, lockTarget?: THREE.Object3D): void {
+    this.impactShake *= Math.exp(-13 * dt);
     this.aimYaw = THREE.MathUtils.clamp(this.aimYaw + aimX, -0.8, 0.8);
     this.aimPitch = THREE.MathUtils.clamp(this.aimPitch + aimY, -0.45, 0.45);
     this.aimYaw *= Math.exp(-1.2 * dt);
@@ -40,6 +44,10 @@ export class CameraController {
       .addScaledVector(inward, GAME.cameraHeight)
       .addScaledVector(tangent, this.aimYaw * 3)
       .addScaledVector(forward, -distance);
+    if (this.impactShake > 0.001) {
+      const jitter = Math.sin(performance.now() * 0.09) * this.impactShake;
+      this.desired.addScaledVector(this.impactAxis, jitter);
+    }
     if (player.movement.mode === "tunnel") {
       const radial = Math.hypot(this.desired.x, this.desired.y);
       const maxRadius = GAME.tunnelRadius - 1.3;
@@ -58,11 +66,17 @@ export class CameraController {
       const lockPosition = lockTarget.getWorldPosition(new THREE.Vector3());
       this.lookTarget.lerp(lockPosition, 0.38);
     }
+    if (this.impactShake > 0.001) this.lookTarget.addScaledVector(this.impactAxis, this.impactShake * 0.45);
     this.lookMatrix.lookAt(this.camera.position, this.lookTarget, this.up);
     this.targetQuaternion.setFromRotationMatrix(this.lookMatrix);
     this.camera.quaternion.slerp(this.targetQuaternion, 1 - Math.exp(-8 * dt));
     this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 64 + speedRatio * 8, 1 - Math.exp(-4 * dt));
     this.camera.updateProjectionMatrix();
+  }
+
+  impact(direction: THREE.Vector3, strength: number): void {
+    this.impactAxis.copy(direction).normalize();
+    this.impactShake = Math.max(this.impactShake, strength);
   }
 
   getAimRay(origin: THREE.Vector3, direction: THREE.Vector3): void {

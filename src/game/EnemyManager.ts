@@ -27,8 +27,11 @@ export class EnemyManager {
 
   reset(): void {
     this.enemies.forEach((enemy) => {
+      enemy.resetHitReaction();
       enemy.alive = true;
       enemy.health = enemy.maxHealth;
+      enemy.revealed = false;
+      enemy.revealTimer = 0;
       enemy.group.visible = true;
       enemy.group.scale.setScalar(1);
     });
@@ -62,11 +65,34 @@ export class EnemyManager {
   update(dt: number, elapsed: number, player: Player, shoot: EnemyShotCallback): void {
     this.enemies.forEach((enemy, index) => {
       if (!enemy.alive) return;
+      enemy.beginHitReactionFrame();
       const distance = enemy.group.position.distanceTo(player.group.position);
-      if (enemy.kind === "boss" || distance < 90 || index % 3 === Math.floor(elapsed * 10) % 3) {
+      if (!enemy.hitStopped && (enemy.kind === "boss" || distance < 90 || index % 3 === Math.floor(elapsed * 10) % 3)) {
         enemy.update(dt, elapsed, player, shoot);
       }
+      enemy.updateHitReaction(dt);
     });
+    this.resolvePlayerContacts(player);
+  }
+
+  private resolvePlayerContacts(player: Player): void {
+    const playerPosition = player.getWorldPosition(new THREE.Vector3());
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      const enemyPosition = enemy.getPosition(new THREE.Vector3());
+      const separation = playerPosition.sub(enemyPosition);
+      const distance = separation.length();
+      const contactRadius = enemy.kind === "boss" ? 5.8 : enemy.kind === "turret" ? 2.2 : 2.6;
+      if (distance >= contactRadius) continue;
+      const direction = distance > 0.001 ? separation.normalize() : player.movement.getTangent();
+      const tangentDirection = direction.clone().projectOnPlane(player.movement.getInward());
+      if (tangentDirection.lengthSq() < 0.001) tangentDirection.copy(player.movement.getTangent());
+      tangentDirection.normalize();
+      const penetration = contactRadius - distance;
+      player.pushFromContact(tangentDirection, penetration * 0.72);
+      enemy.resolveContact(tangentDirection.clone().negate(), penetration * 0.28);
+      playerPosition.copy(player.getWorldPosition());
+    }
   }
 
   get aliveCount(): number {
