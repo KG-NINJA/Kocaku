@@ -169,7 +169,9 @@ export class PlayerMovement {
         const landingDirection = this.surfaceAirVelocity.clone().normalize();
         const landingFar = Math.abs(this.surfaceNormal.y) < 0.75 ? 16 : 8;
         const hit = this.castSurface(this.surfacePosition, landingDirection, landingFar);
-        if (hit && hit.point.y <= this.surfacePosition.y + 0.5) this.attachToHit(hit);
+        if (hit && hit.point.y <= this.surfacePosition.y + 0.5 && this.surfaceHitIsGround(hit)) {
+          this.attachToHit(hit);
+        }
       }
       if (!this.grounded && (this.surfaceAirTime > 1.25 || this.surfacePosition.distanceTo(this.safeSurfacePosition) > 10)) {
         this.restoreSafeSurface();
@@ -192,7 +194,7 @@ export class PlayerMovement {
       if (obstacleHit?.face) {
         const normalMatrix = new THREE.Matrix3().getNormalMatrix(obstacleHit.object.matrixWorld);
         const obstacleNormal = obstacleHit.face.normal.clone().applyMatrix3(normalMatrix).normalize();
-        if (obstacleNormal.dot(moveDirection) < -0.15 && obstacleNormal.y >= 0.55) {
+        if (obstacleNormal.dot(moveDirection) < -0.15) {
           this.attachToHit(obstacleHit, moveDirection);
           this.z = this.surfacePosition.z;
           return result;
@@ -221,7 +223,7 @@ export class PlayerMovement {
     }
     // Prefer the actual ground. Side faces are only attachable after a jump;
     // ordinary walking should never magnetically turn onto a wall.
-    if (hit && hit.point.distanceTo(candidate) <= 6.5 && this.surfaceHitIsGround(hit)) this.attachToHit(hit, moveDirection);
+    if (hit && hit.point.distanceTo(candidate) <= 6.5) this.attachToHit(hit, moveDirection);
     else {
       // Never advance into an unverified volume; this prevents thin/overlapping boxes from being penetrated.
       this.forwardVelocity *= 0.2;
