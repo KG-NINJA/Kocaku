@@ -91,18 +91,21 @@ export class PlayerMovement {
 
   knockback(incomingDirection: THREE.Vector3): void {
     if (this.mode === "surface") {
-      this.surfacePosition.addScaledVector(incomingDirection, -2.2);
-      this.forwardVelocity -= incomingDirection.dot(this.surfaceForward) * 8;
-      this.strafeVelocity -= incomingDirection.dot(this.surfaceRight) * 8;
+      // Projectile direction points from the shooter into the player. Apply
+      // the reaction in that same direction so impacts push the player away
+      // from the source instead of pulling them back into it.
+      this.surfacePosition.addScaledVector(incomingDirection, 2.2);
+      this.forwardVelocity += incomingDirection.dot(this.surfaceForward) * 8;
+      this.strafeVelocity += incomingDirection.dot(this.surfaceRight) * 8;
       this.jumpVelocity = Math.max(this.jumpVelocity, 3.5);
       this.grounded = false;
       return;
     }
     const tangent = this.getTangent();
-    this.z = THREE.MathUtils.clamp(this.z - incomingDirection.z * 2.8, 2, GAME.tunnelLength - 5);
-    this.theta -= tangent.dot(incomingDirection) * 0.12;
-    this.forwardVelocity -= incomingDirection.z * 8;
-    this.strafeVelocity -= tangent.dot(incomingDirection) * 8;
+    this.z = THREE.MathUtils.clamp(this.z + incomingDirection.z * 2.8, 2, GAME.tunnelLength - 5);
+    this.theta += tangent.dot(incomingDirection) * 0.12;
+    this.forwardVelocity += incomingDirection.z * 8;
+    this.strafeVelocity += tangent.dot(incomingDirection) * 8;
     this.jumpVelocity = Math.max(this.jumpVelocity, 3.5);
     this.grounded = false;
   }
