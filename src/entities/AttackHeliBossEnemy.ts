@@ -8,6 +8,7 @@ export class AttackHeliBossEnemy extends BossEnemy {
   override readonly scoreValue = 12000;
   override maxHealth = 560;
   private rocketCooldown = 0.8;
+  private readonly flightCenter = new THREE.Vector3();
 
   constructor() {
     super();
@@ -29,10 +30,20 @@ export class AttackHeliBossEnemy extends BossEnemy {
     this.group.add(tailRotor);
   }
 
+  override relocate(position: THREE.Vector3, normal = new THREE.Vector3(0, 1, 0)): void {
+    super.relocate(position, normal);
+    this.flightCenter.copy(position);
+  }
+
   override update(dt: number, elapsed: number, player: Player, shoot: EnemyShotCallback): void {
     super.update(dt, elapsed, player, shoot);
-    this.group.rotation.y += dt * 0.5;
-    this.group.rotation.z += Math.sin(elapsed * 2.4) * dt * 0.16;
+    // The helicopter circles above the arena and banks into each turn.
+    const orbit = elapsed * 0.34;
+    const desired = this.flightCenter.clone().add(new THREE.Vector3(Math.cos(orbit) * 18, Math.sin(elapsed * 0.8) * 4, Math.sin(orbit) * 14));
+    this.group.position.lerp(desired, 1 - Math.exp(-1.8 * dt));
+    const aimTarget = player.getWorldPosition(new THREE.Vector3());
+    this.group.lookAt(aimTarget);
+    this.group.rotation.z += Math.sin(elapsed * 2.4) * 0.035;
     this.rocketCooldown -= dt;
     if (this.rocketCooldown > 0) return;
     const target = player.getWorldPosition(new THREE.Vector3());

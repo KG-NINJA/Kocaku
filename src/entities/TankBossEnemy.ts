@@ -8,6 +8,7 @@ export class TankBossEnemy extends BossEnemy {
   override readonly scoreValue = 9000;
   override maxHealth = 420;
   private artilleryCooldown = 1.2;
+  private readonly arenaCenter = new THREE.Vector3();
 
   constructor() {
     super();
@@ -26,8 +27,20 @@ export class TankBossEnemy extends BossEnemy {
     this.group.add(cannon);
   }
 
+  override relocate(position: THREE.Vector3, normal = new THREE.Vector3(0, 1, 0)): void {
+    super.relocate(position, normal);
+    this.arenaCenter.copy(position);
+  }
+
   override update(dt: number, elapsed: number, player: Player, shoot: EnemyShotCallback): void {
     super.update(dt, elapsed, player, shoot);
+    // The tank crawls across the surface arena, keeping its heavy front
+    // armor pointed at the player instead of spinning in place.
+    const targetX = this.arenaCenter.x + Math.sin(elapsed * 0.42) * 12;
+    this.group.position.x = THREE.MathUtils.damp(this.group.position.x, targetX, 2.2, dt);
+    this.group.position.z = THREE.MathUtils.damp(this.group.position.z, this.arenaCenter.z + Math.cos(elapsed * 0.3) * 3, 1.4, dt);
+    const aimTarget = player.getWorldPosition(new THREE.Vector3());
+    this.group.lookAt(aimTarget.x, this.group.position.y, aimTarget.z);
     this.artilleryCooldown -= dt;
     if (this.artilleryCooldown > 0) return;
     const target = player.getWorldPosition(new THREE.Vector3());
