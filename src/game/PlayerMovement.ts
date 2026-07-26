@@ -23,6 +23,7 @@ export class PlayerMovement {
   private readonly safeSurfaceNormal = new THREE.Vector3(0, 1, 0);
   private readonly safeSurfaceForward = new THREE.Vector3(0, 0, 1);
   private surfaceAirTime = 0;
+  private surfaceYaw = 0;
   private readonly raycaster = new THREE.Raycaster();
   private surfaces: THREE.Object3D[] = [];
 
@@ -36,6 +37,7 @@ export class PlayerMovement {
     this.strafeVelocity = 0;
     this.grounded = true;
     this.surfaceAirTime = 0;
+    this.surfaceYaw = 0;
     this.surfaceAirVelocity.set(0, 0, 0);
   }
 
@@ -57,6 +59,7 @@ export class PlayerMovement {
     this.safeSurfaceNormal.copy(this.surfaceNormal);
     this.safeSurfaceForward.copy(this.surfaceForward);
     this.surfaceAirTime = 0;
+    this.surfaceYaw = 0;
   }
 
   update(input: InputSnapshot, dt: number, energy: number): { boosting: boolean; energyDelta: number } {
@@ -141,6 +144,14 @@ export class PlayerMovement {
   }
 
   private updateSurface(input: InputSnapshot, dt: number, energy: number): { boosting: boolean; energyDelta: number } {
+    // Surface stages use FPS-style yaw: mouse/touch aim rotates the movement
+    // basis continuously instead of steering only along the building axis.
+    if (Math.abs(input.aimX) > 0.00001) {
+      this.surfaceYaw += input.aimX;
+      const yaw = new THREE.Quaternion().setFromAxisAngle(this.surfaceNormal, input.aimX);
+      this.surfaceForward.applyQuaternion(yaw).projectOnPlane(this.surfaceNormal).normalize();
+      this.surfaceRight.crossVectors(this.surfaceNormal, this.surfaceForward).normalize();
+    }
     const result = this.updateVelocity(input, dt, energy);
     if (input.jumpPressed && this.grounded) {
       this.surfaceAirVelocity.copy(this.surfaceNormal).multiplyScalar(GAME.jumpImpulse * 0.72);
@@ -181,7 +192,7 @@ export class PlayerMovement {
       if (obstacleHit?.face) {
         const normalMatrix = new THREE.Matrix3().getNormalMatrix(obstacleHit.object.matrixWorld);
         const obstacleNormal = obstacleHit.face.normal.clone().applyMatrix3(normalMatrix).normalize();
-        if (obstacleNormal.dot(moveDirection) < -0.15) {
+        if (obstacleNormal.dot(moveDirection) < -0.15 && obstacleNormal.y >= 0.55) {
           this.attachToHit(obstacleHit, moveDirection);
           this.z = this.surfacePosition.z;
           return result;
@@ -208,7 +219,9 @@ export class PlayerMovement {
         edgeDistance * 2.5 + movement.length()
       );
     }
-    if (hit && hit.point.distanceTo(candidate) <= 6.5) this.attachToHit(hit, moveDirection);
+    // Prefer the actual ground. Side faces are only attachable after a jump;
+    // ordinary walking should never magnetically turn onto a wall.
+    if (hit && hit.point.distanceTo(candidate) <= 6.5 && this.surfaceHitIsGround(hit)) this.attachToHit(hit, moveDirection);
     else {
       // Never advance into an unverified volume; this prevents thin/overlapping boxes from being penetrated.
       this.forwardVelocity *= 0.2;
@@ -251,6 +264,13 @@ export class PlayerMovement {
     this.raycaster.near = 0;
     this.raycaster.far = far;
     return this.raycaster.intersectObjects(this.surfaces, false)[0];
+  }
+
+  private surfaceHitIsGround(hit: THREE.Intersection): boolean {
+    if (!hit.face) return false;
+    const normalMatrix = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
+    const normal = hit.face.normal.clone().applyMatrix3(normalMatrix).normalize();
+    return normal.y >= 0.55;
   }
 
   private attachToHit(hit: THREE.Intersection, travelDirection?: THREE.Vector3): void {
