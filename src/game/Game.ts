@@ -82,6 +82,7 @@ export class Game {
     this.enemies.reset();
     this.projectiles.clear();
     this.projectiles.setStageMode("tunnel");
+    this.projectiles.setObstacleSurfaces([]);
     this.weapon.lockTarget = undefined;
     this.cameraController.reset(this.player);
     this.stageStartedAt = 0;
@@ -154,6 +155,12 @@ export class Game {
       });
     }
     this.projectiles.update(dt, this.player, this.enemies.enemies, (hit) => {
+      if (hit.obstacleHit) {
+        this.effects.impact(hit.position, 0x9aa6ad, 0.7);
+        this.audio.play("bulletCrack");
+        this.triggerHitStop(0.035);
+        return;
+      }
       this.particles.burst(hit.position, !hit.playerHit);
       if (hit.playerHit) {
         this.effects.impact(hit.position, 0xff3157, 1.25);
@@ -210,6 +217,7 @@ export class Game {
     this.player.health = Math.min(GAME.maxHealth, this.player.health + 40);
     this.player.energy = GAME.maxEnergy;
     const surfaces = this.stage.activateBuilding();
+    this.projectiles.setObstacleSurfaces(surfaces);
     this.player.movement.enterSurfaceMode(
       surfaces,
       this.stage.getBuildingStart(this.state.stage),

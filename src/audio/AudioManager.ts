@@ -1,4 +1,4 @@
-export type SoundName = "start" | "shot" | "hit" | "impact" | "armorHit" | "lock" | "scan" | "destroy" | "bigExplosion" | "warning" | "boost" | "clear";
+export type SoundName = "start" | "shot" | "hit" | "impact" | "armorHit" | "lock" | "scan" | "destroy" | "bigExplosion" | "warning" | "boost" | "clear" | "bulletCrack";
 
 const SOUND: Record<SoundName, [number, number, number, OscillatorType]> = {
   start: [180, 620, 0.35, "sine"],
@@ -12,7 +12,8 @@ const SOUND: Record<SoundName, [number, number, number, OscillatorType]> = {
   bigExplosion: [58, 12, 1.0, "sawtooth"],
   warning: [240, 190, 0.16, "square"],
   boost: [90, 130, 0.12, "sawtooth"],
-  clear: [330, 880, 0.8, "triangle"]
+  clear: [330, 880, 0.8, "triangle"],
+  bulletCrack: [110, 38, 0.16, "sawtooth"]
 };
 
 export class AudioManager {

@@ -31,6 +31,7 @@ export interface HitResult {
   playerHit: boolean;
   position: THREE.Vector3;
   direction: THREE.Vector3;
+  obstacleHit?: boolean;
 }
 
 export class ProjectileManager {
@@ -38,6 +39,8 @@ export class ProjectileManager {
   private readonly pool: ObjectPool<Projectile>;
   private readonly fadingTrails: FadingTrail[] = [];
   private stageMode: "tunnel" | "surface" = "tunnel";
+  private obstacleSurfaces: THREE.Object3D[] = [];
+  private readonly obstacleRaycaster = new THREE.Raycaster();
 
   constructor(private readonly scene: THREE.Scene) {
     this.pool = new ObjectPool(() => {
@@ -98,6 +101,10 @@ export class ProjectileManager {
     this.stageMode = mode;
   }
 
+  setObstacleSurfaces(surfaces: THREE.Object3D[]): void {
+    this.obstacleSurfaces = surfaces;
+  }
+
   update(dt: number, player: Player, enemies: Enemy[], onHit: (result: HitResult) => void): void {
     this.updateFadingTrails(dt);
     for (let i = this.active.length - 1; i >= 0; i -= 1) {
@@ -115,7 +122,21 @@ export class ProjectileManager {
         desired.addScaledVector(lateral, Math.sin(shot.flightTime * 7 + shot.curvePhase) * curve).normalize();
         shot.velocity.lerp(desired.multiplyScalar(GAME.missileSpeed), Math.min(1, dt * 2.4));
       }
-      shot.mesh.position.addScaledVector(shot.velocity, dt);
+      const previousPosition = shot.mesh.position.clone();
+      const travel = shot.velocity.clone().multiplyScalar(dt);
+      shot.mesh.position.add(travel);
+      if (this.obstacleSurfaces.length > 0 && travel.lengthSq() > 0.000001) {
+        this.obstacleRaycaster.set(previousPosition, travel.clone().normalize());
+        this.obstacleRaycaster.near = 0;
+        this.obstacleRaycaster.far = travel.length() + 0.25;
+        const obstacle = this.obstacleRaycaster.intersectObjects(this.obstacleSurfaces, false)[0];
+        if (obstacle) {
+          shot.mesh.position.copy(obstacle.point);
+          onHit({ obstacleHit: true, playerHit: false, position: obstacle.point.clone(), direction: shot.velocity.clone().normalize() });
+          this.release(i, shot, false);
+          continue;
+        }
+      }
       if (shot.homingTarget) {
         shot.trailPoints.push(shot.mesh.position.clone());
         if (shot.trailPoints.length > MISSILE_TRAIL_POINTS) shot.trailPoints.shift();
