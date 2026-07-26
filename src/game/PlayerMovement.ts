@@ -14,6 +14,7 @@ export class PlayerMovement {
   forwardVelocity = 0;
   strafeVelocity = 0;
   grounded = true;
+  get wallAttached(): boolean { return this.mode === "surface" && this.grounded && Math.abs(this.surfaceNormal.y) < 0.55; }
   private readonly surfacePosition = new THREE.Vector3();
   private readonly surfaceAirVelocity = new THREE.Vector3();
   private readonly surfaceNormal = new THREE.Vector3(0, 1, 0);

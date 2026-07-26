@@ -8,6 +8,7 @@ export class Player {
   readonly group = new THREE.Group();
   readonly movement = new PlayerMovement();
   readonly muzzle = new THREE.Object3D();
+  private readonly wallIndicator: THREE.Mesh;
   health: number = GAME.maxHealth;
   energy: number = GAME.maxEnergy;
   boosting = false;
@@ -36,6 +37,14 @@ export class Player {
     this.group.add(barrel);
     this.muzzle.position.set(0, 0.95, 2.1);
     this.group.add(this.muzzle);
+    this.wallIndicator = new THREE.Mesh(
+      new THREE.TorusGeometry(1.25, 0.06, 5, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffcf45, wireframe: true })
+    );
+    this.wallIndicator.rotation.x = Math.PI / 2;
+    this.wallIndicator.position.y = 0.15;
+    this.wallIndicator.visible = false;
+    this.group.add(this.wallIndicator);
 
     const legGeometry = new THREE.BoxGeometry(0.18, 0.18, 1.15);
     const footGeometry = new THREE.BoxGeometry(0.45, 0.16, 0.65);
@@ -92,6 +101,8 @@ export class Player {
     this.group.quaternion.slerp(impactOrientation, 1 - Math.exp(-10 * dt));
     const squash = this.impactPulse * 0.1;
     this.group.scale.set(1 + squash, 1 - squash * 0.75, 1 + squash);
+    this.wallIndicator.visible = this.movement.wallAttached;
+    if (this.wallIndicator.visible) this.wallIndicator.rotation.z += dt * 3;
     const forwardSpeed = this.movement.forwardVelocity;
     const strafeSpeed = this.movement.strafeVelocity;
     const planarSpeed = Math.hypot(forwardSpeed, strafeSpeed);

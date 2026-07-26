@@ -53,6 +53,10 @@ export class ParticleSystem {
       if (!sequence.largeStarted && sequence.time >= 0.95) {
         sequence.largeStarted = true;
         this.burst(sequence.origin, false, this.lowPerformance ? 5 : 10);
+        // A boss shell breaks into many short-lived metal fragments after the
+        // main blast, making the destruction feel physical rather than purely
+        // light-based.
+        this.burst(sequence.origin, true, this.lowPerformance ? 3 : 6);
       }
       if (sequence.time >= 2.2) this.bossSequence = undefined;
     }
