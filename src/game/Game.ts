@@ -122,7 +122,9 @@ export class Game {
 
   private update(dt: number): void {
     if (this.state.mode === "boss-explosion") {
-      this.updateBossExplosion(dt);
+      // Let the entire boss breakup play as a readable slow-motion set piece.
+      // Gameplay is paused in this mode, so only the cinematic clock is scaled.
+      this.updateBossExplosion(dt * 0.55);
       return;
     }
 
