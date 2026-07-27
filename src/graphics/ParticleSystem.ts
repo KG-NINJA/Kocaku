@@ -113,11 +113,11 @@ export class ParticleSystem {
   private spawnPolygonFragments(origin: THREE.Vector3): void {
     // Deliberately dense debris cloud: the boss defeat should visibly stress
     // the polygon renderer as part of the spectacle.
-    const count = this.lowPerformance ? 56 : 180;
+    const count = this.lowPerformance ? 120 : 420;
     for (let i = 0; i < count; i += 1) {
       const material = new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0xffcf45 : 0xff3157, transparent: true });
-      const mesh = new THREE.Mesh(new THREE.TetrahedronGeometry(0.42 + Math.random() * 0.7, 0), material);
-      mesh.position.copy(origin).add(new THREE.Vector3().randomDirection().multiplyScalar(1.2 + Math.random() * 3));
+      const mesh = new THREE.Mesh(new THREE.TetrahedronGeometry(0.5 + Math.random() * 0.9, 0), material);
+      mesh.position.copy(origin).add(new THREE.Vector3().randomDirection().multiplyScalar(2 + Math.random() * 6));
       this.scene.add(mesh);
       this.polygonFragments.push({
         mesh,
