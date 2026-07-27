@@ -16,8 +16,16 @@ interface BossSequence {
   largeStarted: boolean;
 }
 
+interface PolygonFragment {
+  mesh: THREE.Mesh;
+  velocity: THREE.Vector3;
+  spin: THREE.Vector3;
+  life: number;
+}
+
 export class ParticleSystem {
   private readonly bursts: Burst[] = [];
+  private readonly polygonFragments: PolygonFragment[] = [];
   private bossSequence?: BossSequence;
   constructor(private readonly scene: THREE.Scene, private readonly lowPerformance: boolean) {}
 
@@ -59,6 +67,7 @@ export class ParticleSystem {
         // main blast, making the destruction feel physical rather than purely
         // light-based.
         this.burst(sequence.origin, true, this.lowPerformance ? 5 : 10, 0.34, 1.35, 2.4);
+        this.spawnPolygonFragments(sequence.origin);
       }
       if (sequence.time >= 2.2) this.bossSequence = undefined;
     }
@@ -81,6 +90,39 @@ export class ParticleSystem {
         (burst.line.material as THREE.Material).dispose();
         this.bursts.splice(b, 1);
       }
+    }
+    for (let i = this.polygonFragments.length - 1; i >= 0; i -= 1) {
+      const fragment = this.polygonFragments[i];
+      if (!fragment) continue;
+      fragment.life -= dt;
+      fragment.velocity.y -= 3.2 * dt;
+      fragment.mesh.position.addScaledVector(fragment.velocity, dt);
+      fragment.mesh.rotation.x += fragment.spin.x * dt;
+      fragment.mesh.rotation.y += fragment.spin.y * dt;
+      fragment.mesh.rotation.z += fragment.spin.z * dt;
+      (fragment.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, fragment.life / 1.6);
+      if (fragment.life <= 0) {
+        this.scene.remove(fragment.mesh);
+        fragment.mesh.geometry.dispose();
+        (fragment.mesh.material as THREE.Material).dispose();
+        this.polygonFragments.splice(i, 1);
+      }
+    }
+  }
+
+  private spawnPolygonFragments(origin: THREE.Vector3): void {
+    const count = this.lowPerformance ? 12 : 28;
+    for (let i = 0; i < count; i += 1) {
+      const material = new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0xffcf45 : 0xff3157, wireframe: true, transparent: true });
+      const mesh = new THREE.Mesh(new THREE.TetrahedronGeometry(0.18 + Math.random() * 0.42, 0), material);
+      mesh.position.copy(origin).add(new THREE.Vector3().randomDirection().multiplyScalar(1.2 + Math.random() * 3));
+      this.scene.add(mesh);
+      this.polygonFragments.push({
+        mesh,
+        velocity: new THREE.Vector3().randomDirection().multiplyScalar(2.2 + Math.random() * 5),
+        spin: new THREE.Vector3().randomDirection().multiplyScalar(3 + Math.random() * 8),
+        life: 1.6 + Math.random() * 0.6
+      });
     }
   }
 }
