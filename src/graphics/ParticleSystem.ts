@@ -111,7 +111,9 @@ export class ParticleSystem {
   }
 
   private spawnPolygonFragments(origin: THREE.Vector3): void {
-    const count = this.lowPerformance ? 12 : 28;
+    // Deliberately dense debris cloud: the boss defeat should visibly stress
+    // the polygon renderer as part of the spectacle.
+    const count = this.lowPerformance ? 56 : 180;
     for (let i = 0; i < count; i += 1) {
       const material = new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0xffcf45 : 0xff3157, transparent: true });
       const mesh = new THREE.Mesh(new THREE.TetrahedronGeometry(0.42 + Math.random() * 0.7, 0), material);
