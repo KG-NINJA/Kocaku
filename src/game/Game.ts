@@ -273,6 +273,10 @@ export class Game {
       this.post.triggerExplosion();
       this.audio.play("bigExplosion");
       this.effects.impact(this.bossExplosionOrigin, 0xffffff, 3);
+      // Exaggerated kabuki-like impact: a brief, theatrical camera jolt makes
+      // the destruction read as a deliberate finishing tableau.
+      const impactDirection = this.bossExplosionOrigin.clone().sub(this.player.getWorldPosition(new THREE.Vector3())).normalize();
+      this.cameraController.impact(impactDirection, 1.15);
       this.ui.triggerBossBlast();
     }
     if (!this.bossExplosionClearShown && this.bossExplosionTime >= 1.35) {

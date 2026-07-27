@@ -5,6 +5,8 @@ interface Burst {
   line: THREE.LineSegments;
   velocities: Float32Array;
   life: number;
+  maxLife: number;
+  gravity: number;
 }
 
 interface BossSequence {
@@ -19,12 +21,12 @@ export class ParticleSystem {
   private bossSequence?: BossSequence;
   constructor(private readonly scene: THREE.Scene, private readonly lowPerformance: boolean) {}
 
-  burst(position: THREE.Vector3, enemy = true, multiplier = 1): void {
+  burst(position: THREE.Vector3, enemy = true, multiplier = 1, velocityScale = 1, life = 0.34, gravity = 0): void {
     const count = (this.lowPerformance ? 10 : 22) * multiplier;
     const positions = new Float32Array(count * 2 * 3);
     const velocities = new Float32Array(count * 3);
     for (let i = 0; i < count; i += 1) {
-      const direction = new THREE.Vector3().randomDirection().multiplyScalar(3 + Math.random() * 7);
+      const direction = new THREE.Vector3().randomDirection().multiplyScalar((3 + Math.random() * 7) * velocityScale);
       velocities.set([direction.x, direction.y, direction.z], i * 3);
       positions.set([position.x, position.y, position.z, position.x, position.y, position.z], i * 6);
     }
@@ -34,7 +36,7 @@ export class ParticleSystem {
       color: enemy ? COLORS.enemy : COLORS.projectile, transparent: true
     }));
     this.scene.add(line);
-    this.bursts.push({ line, velocities, life: 0.34 });
+    this.bursts.push({ line, velocities, life, maxLife: life, gravity });
   }
 
   startBossExplosion(position: THREE.Vector3): void {
@@ -56,7 +58,7 @@ export class ParticleSystem {
         // A boss shell breaks into many short-lived metal fragments after the
         // main blast, making the destruction feel physical rather than purely
         // light-based.
-        this.burst(sequence.origin, true, this.lowPerformance ? 3 : 6);
+        this.burst(sequence.origin, true, this.lowPerformance ? 5 : 10, 0.34, 1.35, 2.4);
       }
       if (sequence.time >= 2.2) this.bossSequence = undefined;
     }
@@ -67,12 +69,12 @@ export class ParticleSystem {
       const attribute = burst.line.geometry.getAttribute("position") as THREE.BufferAttribute;
       for (let i = 0; i < burst.velocities.length / 3; i += 1) {
         const x = attribute.getX(i * 2 + 1) + burst.velocities[i * 3]! * dt;
-        const y = attribute.getY(i * 2 + 1) + burst.velocities[i * 3 + 1]! * dt;
+        const y = attribute.getY(i * 2 + 1) + burst.velocities[i * 3 + 1]! * dt - burst.gravity * dt * dt * 0.5;
         const z = attribute.getZ(i * 2 + 1) + burst.velocities[i * 3 + 2]! * dt;
         attribute.setXYZ(i * 2 + 1, x, y, z);
       }
       attribute.needsUpdate = true;
-      (burst.line.material as THREE.LineBasicMaterial).opacity = Math.max(0, burst.life / 0.34);
+      (burst.line.material as THREE.LineBasicMaterial).opacity = Math.max(0, burst.life / burst.maxLife);
       if (burst.life <= 0) {
         this.scene.remove(burst.line);
         burst.line.geometry.dispose();
