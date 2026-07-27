@@ -113,13 +113,13 @@ export class ParticleSystem {
   private spawnPolygonFragments(origin: THREE.Vector3): void {
     const count = this.lowPerformance ? 12 : 28;
     for (let i = 0; i < count; i += 1) {
-      const material = new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0xffcf45 : 0xff3157, wireframe: true, transparent: true });
-      const mesh = new THREE.Mesh(new THREE.TetrahedronGeometry(0.18 + Math.random() * 0.42, 0), material);
+      const material = new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0xffcf45 : 0xff3157, transparent: true });
+      const mesh = new THREE.Mesh(new THREE.TetrahedronGeometry(0.42 + Math.random() * 0.7, 0), material);
       mesh.position.copy(origin).add(new THREE.Vector3().randomDirection().multiplyScalar(1.2 + Math.random() * 3));
       this.scene.add(mesh);
       this.polygonFragments.push({
         mesh,
-        velocity: new THREE.Vector3().randomDirection().multiplyScalar(2.2 + Math.random() * 5),
+        velocity: new THREE.Vector3().randomDirection().multiplyScalar(4.5 + Math.random() * 8),
         spin: new THREE.Vector3().randomDirection().multiplyScalar(3 + Math.random() * 8),
         life: 1.6 + Math.random() * 0.6
       });
