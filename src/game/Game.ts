@@ -196,7 +196,7 @@ export class Game {
     this.cameraController.update(this.player, dt, input.aimX, input.aimY, this.weapon.lockTarget?.group);
     this.state.elapsed += dt;
     this.state.timeLeft = Math.max(0, this.state.timeLeft - dt);
-    this.ui.update(this.state, this.player, this.scan, this.enemies.aliveCount, Boolean(this.weapon.lockTarget), dt);
+    this.ui.update(this.state, this.player, this.scan, this.enemies.aliveCount, Boolean(this.weapon.lockTarget), dt, this.enemies.boss, this.camera);
 
     if (!this.enemies.boss.alive) {
       this.beginBossExplosion();
@@ -215,7 +215,7 @@ export class Game {
     this.state.mode = "playing";
     this.state.stage = (this.state.stage + 1) as 2 | 3 | 4;
     this.stageStartedAt = this.state.elapsed;
-    this.state.timeLeft = Math.max(this.state.timeLeft, this.state.stage === 2 ? 210 : this.state.stage === 3 ? 240 : 270);
+    this.state.timeLeft = Math.max(this.state.timeLeft, this.state.stage === 2 ? 240 : this.state.stage === 3 ? 270 : 300);
     this.player.health = Math.min(GAME.maxHealth, this.player.health + 40);
     this.player.energy = GAME.maxEnergy;
     const surfaces = this.stage.activateBuilding();
@@ -261,7 +261,7 @@ export class Game {
     this.particles.update(dt);
     this.effects.update(dt);
     this.cameraController.update(this.player, dt, 0, 0);
-    this.ui.update(this.state, this.player, this.scan, this.enemies.aliveCount, false, dt);
+    this.ui.update(this.state, this.player, this.scan, this.enemies.aliveCount, false, dt, this.enemies.boss, this.camera);
 
     if (!this.bossExplosionLargeTriggered) {
       const pulse = 1 + Math.sin(this.bossExplosionTime * 38) * 0.045;

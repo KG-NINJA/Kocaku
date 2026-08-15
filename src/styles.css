@@ -59,6 +59,22 @@ button:hover { background: #41ffe6; color: #021013; box-shadow: 0 0 26px rgba(65
 #crosshair.locked i { background: #ff3157; }
 #lock-label { position: absolute; left: 50%; top: calc(50% + 38px); transform: translateX(-50%); font-size: 9px; letter-spacing: .18em; }
 #lock-label.active { color: #ff3157; }
+#boss-indicator {
+  position: absolute; left: 50%; top: 28%; width: 150px; padding: 7px 10px 9px;
+  transform: translate(-50%, -50%); text-align: center; color: #ffcf45;
+  border: 1px solid rgba(255, 207, 69, .85); background: rgba(22, 8, 5, .82);
+  box-shadow: 0 0 20px rgba(255, 49, 87, .35); animation: bossTargetPulse .9s ease-in-out infinite alternate;
+}
+#boss-indicator::after {
+  content: ""; position: absolute; left: 50%; bottom: -9px; width: 10px; height: 10px;
+  border-right: 2px solid #ffcf45; border-bottom: 2px solid #ffcf45;
+  transform: translateX(-50%) rotate(45deg); background: rgba(22, 8, 5, .82);
+}
+#boss-indicator span { display: block; font-size: 8px; letter-spacing: .28em; }
+#boss-indicator strong { display: block; margin: 2px 0 5px; color: white; font-size: 12px; letter-spacing: .15em; }
+.boss-health { height: 4px; background: rgba(255,255,255,.12); }
+.boss-health i { display: block; width: 100%; height: 100%; background: #ff3157; box-shadow: 0 0 9px #ff3157; }
+@keyframes bossTargetPulse { from { opacity: .78; } to { opacity: 1; box-shadow: 0 0 28px rgba(255, 49, 87, .58); } }
 #warning { position: absolute; bottom: 12%; width: 100%; text-align: center; color: #ff3157; letter-spacing: .25em; animation: blink .6s steps(2) infinite; }
 #fps { position: absolute; right: 24px; bottom: 20px; color: #527975; font: 10px monospace; }
 #scan-flash { position: fixed; inset: 0; z-index: 4; pointer-events: none; border: 0 solid rgba(65, 255, 230, 0); }

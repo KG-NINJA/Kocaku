@@ -6,7 +6,7 @@ import type { EnemyShotCallback } from "./Enemy";
 
 export class AttackHeliBossEnemy extends BossEnemy {
   override readonly scoreValue = 12000;
-  override maxHealth = 560;
+  override maxHealth = 480;
   private rocketCooldown = 0.8;
   private readonly flightCenter = new THREE.Vector3();
 
@@ -51,7 +51,7 @@ export class AttackHeliBossEnemy extends BossEnemy {
     const direction = target.sub(origin).normalize();
     for (const spread of [-0.3, -0.15, 0, 0.15, 0.3]) {
       const shotDirection = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), spread);
-      shoot(origin.clone(), shotDirection, 12);
+      shoot(origin.clone(), shotDirection, 9);
     }
     this.rocketCooldown = 1.65;
   }

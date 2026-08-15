@@ -1,4 +1,6 @@
+import * as THREE from "three";
 import { GAME } from "../config/gameConfig";
+import type { BossEnemy } from "../entities/BossEnemy";
 import type { RuntimeState } from "../game/GameState";
 import type { Player } from "../game/Player";
 import type { ScanSystem } from "../game/ScanSystem";
@@ -32,6 +34,9 @@ export class UIManager {
   private readonly scan = required<HTMLElement>("#scan-status");
   private readonly lock = required<HTMLElement>("#lock-label");
   private readonly crosshair = required<HTMLElement>("#crosshair");
+  private readonly bossIndicator = required<HTMLElement>("#boss-indicator");
+  private readonly bossName = required<HTMLElement>("#boss-name");
+  private readonly bossHealthBar = required<HTMLElement>("#boss-health-bar");
   private readonly warning = required<HTMLElement>("#warning");
   private readonly fps = required<HTMLElement>("#fps");
   private readonly scanFlash = required<HTMLElement>("#scan-flash");
@@ -54,7 +59,16 @@ export class UIManager {
     this.pause.classList.toggle("hidden", !paused);
   }
 
-  update(state: RuntimeState, player: Player, scanSystem: ScanSystem, enemyCount: number, locked: boolean, dt: number): void {
+  update(
+    state: RuntimeState,
+    player: Player,
+    scanSystem: ScanSystem,
+    enemyCount: number,
+    locked: boolean,
+    dt: number,
+    boss: BossEnemy,
+    camera: THREE.Camera
+  ): void {
     const healthPercent = player.health / GAME.maxHealth * 100;
     const energyPercent = player.energy / GAME.maxEnergy * 100;
     this.healthBar.style.width = `${healthPercent}%`;
@@ -72,6 +86,7 @@ export class UIManager {
     this.lock.textContent = locked ? "TARGET LOCKED" : "NO LOCK";
     this.lock.classList.toggle("active", locked);
     this.crosshair.classList.toggle("locked", locked);
+    this.updateBossIndicator(state, boss, camera);
     this.announcementTime = Math.max(0, this.announcementTime - dt);
     this.warning.textContent = this.announcementTime > 0
       ? this.announcement
@@ -83,6 +98,30 @@ export class UIManager {
       this.frameCount = 0;
       this.fpsTime = 0;
     }
+  }
+
+  private updateBossIndicator(state: RuntimeState, boss: BossEnemy, camera: THREE.Camera): void {
+    const visible = state.mode === "playing" && boss.alive;
+    this.bossIndicator.classList.toggle("hidden", !visible);
+    if (!visible) return;
+
+    const labels: Record<number, string> = {
+      1: "DEFENSE CORE",
+      2: "SURFACE CORE",
+      3: "HEAVY TANK",
+      4: "ATTACK HELICOPTER"
+    };
+    this.bossName.textContent = labels[state.stage] ?? "BOSS";
+    this.bossHealthBar.style.width = `${THREE.MathUtils.clamp(boss.health / boss.maxHealth * 100, 0, 100)}%`;
+
+    const projected = boss.getPosition(new THREE.Vector3()).project(camera);
+    if (projected.z > 1) projected.set(0, -0.72, 0);
+    const marginX = 90;
+    const marginY = 65;
+    const x = THREE.MathUtils.clamp((projected.x * 0.5 + 0.5) * innerWidth, marginX, innerWidth - marginX);
+    const y = THREE.MathUtils.clamp((-projected.y * 0.5 + 0.5) * innerHeight, marginY, innerHeight - marginY);
+    this.bossIndicator.style.left = `${x}px`;
+    this.bossIndicator.style.top = `${y}px`;
   }
 
   triggerScan(): void {

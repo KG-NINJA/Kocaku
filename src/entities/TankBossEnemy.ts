@@ -6,7 +6,7 @@ import type { EnemyShotCallback } from "./Enemy";
 
 export class TankBossEnemy extends BossEnemy {
   override readonly scoreValue = 9000;
-  override maxHealth = 420;
+  override maxHealth = 380;
   private artilleryCooldown = 1.2;
   private readonly arenaCenter = new THREE.Vector3();
 
@@ -48,7 +48,7 @@ export class TankBossEnemy extends BossEnemy {
     const direction = target.sub(origin).normalize();
     for (const spread of [-0.12, 0, 0.12]) {
       const shotDirection = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), spread);
-      shoot(origin.clone(), shotDirection, 15);
+      shoot(origin.clone(), shotDirection, 12);
     }
     this.artilleryCooldown = 2.1;
   }

@@ -19,7 +19,7 @@ export const GAME = {
   lockAngle: 0.6,
   scanRange: 55,
   scanCooldown: 7,
-  stageTime: 180,
+  stageTime: 210,
   bossZ: 232,
   cameraDistance: 9,
   cameraHeight: 4.5,
