@@ -74,7 +74,7 @@ export class Game {
     this.animationFrame = requestAnimationFrame(this.loop);
   }
 
-  async start(): Promise<void> {
+  async start(stage: 1 | 2 | 3 | 4 = 1): Promise<void> {
     await this.audio.resume();
     Object.assign(this.state, createInitialState(), { mode: "playing", timeLeft: GAME.stageTime });
     this.player.reset();
@@ -88,6 +88,10 @@ export class Game {
     this.stageStartedAt = 0;
     this.previousTime = performance.now();
     this.hitStop = 0;
+    if (stage > 1) {
+      this.state.stage = (stage - 1) as 1 | 2 | 3;
+      this.advanceToNextStage(false);
+    }
     this.ui.showGame(this.input.isTouch);
     this.audio.play("start");
   }
@@ -208,7 +212,7 @@ export class Game {
     this.hitStop = Math.max(this.hitStop, duration);
   }
 
-  private advanceToNextStage(): void {
+  private advanceToNextStage(playCue = true): void {
     this.ui.hideStageClear();
     // The stage-one clear sequence runs in boss-explosion mode. Explicitly
     // return to the normal gameplay state before handing control to stage 2.
@@ -236,7 +240,7 @@ export class Game {
     this.enemies.boss.group.scale.setScalar(1);
     this.ui.announceStage(this.state.stage);
     this.post.triggerScan();
-    this.audio.play("start");
+    if (playCue) this.audio.play("start");
   }
 
   private beginBossExplosion(): void {

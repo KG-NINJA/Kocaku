@@ -13,7 +13,7 @@ const required = <T extends Element>(selector: string): T => {
 };
 
 export class UIManager {
-  readonly startButton = required<HTMLButtonElement>("#start-button");
+  readonly stageButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-stage-start]"));
   readonly retryButton = required<HTMLButtonElement>("#retry-button");
   readonly lowMode = required<HTMLInputElement>("#low-mode");
   readonly volume = required<HTMLInputElement>("#volume");
@@ -108,7 +108,7 @@ export class UIManager {
     const labels: Record<number, string> = {
       1: "DEFENSE CORE",
       2: "SURFACE CORE",
-      3: "HEAVY TANK",
+      3: "COLOSSUS WALKER",
       4: "ATTACK HELICOPTER"
     };
     this.bossName.textContent = labels[state.stage] ?? "BOSS";

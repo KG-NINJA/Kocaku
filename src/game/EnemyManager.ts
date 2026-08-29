@@ -107,7 +107,9 @@ export class EnemyManager {
       const enemyPosition = enemy.getPosition(new THREE.Vector3());
       const separation = playerPosition.sub(enemyPosition);
       const distance = separation.length();
-      const contactRadius = enemy.kind === "boss" ? 5.8 : enemy.kind === "turret" ? 2.2 : 2.6;
+      const contactRadius = enemy.contactRadius > 0
+        ? enemy.contactRadius
+        : enemy.kind === "boss" ? 5.8 : enemy.kind === "turret" ? 2.2 : 2.6;
       if (distance >= contactRadius) continue;
       const direction = distance > 0.001 ? separation.normalize() : player.movement.getTangent();
       const tangentDirection = direction.clone().projectOnPlane(player.movement.getInward());

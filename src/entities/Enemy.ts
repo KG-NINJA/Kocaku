@@ -13,6 +13,7 @@ export abstract class Enemy {
   abstract readonly kind: EnemyKind;
   abstract readonly scoreValue: number;
   abstract maxHealth: number;
+  readonly contactRadius: number = 0;
   health = 1;
   private readonly impactVelocity = new THREE.Vector3();
   private readonly impactOffset = new THREE.Vector3();
