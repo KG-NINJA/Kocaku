@@ -75,7 +75,7 @@ export class ProjectileManager {
     shot.damage = damage;
     shot.lifetime = GAME.projectileLifetime;
     shot.mesh.position.copy(origin);
-    shot.mesh.scale.setScalar(hostile && damage >= 18 ? 2.4 : 1);
+    shot.mesh.scale.setScalar(hostile ? damage >= 18 ? 3 : 1.8 : 1);
     shot.velocity.copy(direction).multiplyScalar(homingTarget ? GAME.missileSpeed : hostile ? GAME.enemyProjectileSpeed : GAME.projectileSpeed);
     if (homingTarget) {
       const launchCurve = new THREE.Vector3().crossVectors(direction, new THREE.Vector3(0, 1, 0));

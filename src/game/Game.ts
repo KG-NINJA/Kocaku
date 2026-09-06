@@ -76,9 +76,16 @@ export class Game {
 
   async start(stage: 1 | 2 | 3 | 4 = 1): Promise<void> {
     await this.audio.resume();
+    this.input.reset();
+    this.scan.reset();
+    this.weapon.reset();
+    this.particles.clear();
+    this.effects.update(1);
+    this.wasBoosting = false;
     Object.assign(this.state, createInitialState(), { mode: "playing", timeLeft: GAME.stageTime });
     this.player.reset();
     this.stage.activateTunnel();
+    this.cameraController.setSurfaces([]);
     this.enemies.reset();
     this.projectiles.clear();
     this.projectiles.setStageMode("tunnel");
@@ -93,7 +100,27 @@ export class Game {
       this.advanceToNextStage(false);
     }
     this.ui.showGame(this.input.isTouch);
+    this.ui.announceStage(stage);
     this.audio.play("start");
+  }
+
+  get currentStage(): 1 | 2 | 3 | 4 { return this.state.stage; }
+
+  setPaused(paused: boolean): void {
+    if (this.state.mode !== "playing" && this.state.mode !== "paused") return;
+    this.state.mode = paused ? "paused" : "playing";
+    this.input.reset();
+    if (paused && document.pointerLockElement) void document.exitPointerLock();
+    this.ui.showPause(paused);
+    this.previousTime = performance.now();
+  }
+
+  returnToTitle(): void {
+    this.state.mode = "title";
+    this.input.reset();
+    this.projectiles.clear();
+    if (document.pointerLockElement) void document.exitPointerLock();
+    this.ui.showTitle();
   }
 
   dispose(): void {
@@ -154,7 +181,7 @@ export class Game {
     }
     this.scan.update(dt, this.player);
 
-    const enemyGracePeriod = import.meta.env.DEV && this.state.stage >= 2 ? 120 : this.state.stage >= 2 ? 20 : 8;
+    const enemyGracePeriod = 5;
     if (this.state.elapsed - this.stageStartedAt > enemyGracePeriod) {
       this.enemies.update(dt, this.state.elapsed, this.player, (origin, direction, damage) => {
         this.projectiles.spawn(origin, direction, true, damage);
@@ -164,7 +191,6 @@ export class Game {
       if (hit.obstacleHit) {
         this.effects.impact(hit.position, 0x9aa6ad, 0.7);
         this.audio.play("bulletCrack");
-        this.triggerHitStop(0.035);
         return;
       }
       this.particles.burst(hit.position, !hit.playerHit);
@@ -182,7 +208,8 @@ export class Game {
         const impactForce = hit.enemy.kind === "boss" ? 1.8 : hit.enemy.kind === "turret" ? 3.2 : 2.5;
         hit.enemy.registerHit(hit.direction, impactForce);
         this.audio.play("armorHit");
-        this.triggerHitStop(hit.enemy.kind === "boss" ? 0.1 : 0.06);
+        this.triggerHitStop(hit.enemy.alive ? 0.025 : 0.065);
+        this.ui.confirmHit(!hit.enemy.alive);
         this.state.hits += 1;
         if (!hit.enemy.alive) {
           this.scores.enemyDestroyed(hit.enemy);
@@ -223,6 +250,7 @@ export class Game {
     this.player.health = Math.min(GAME.maxHealth, this.player.health + 40);
     this.player.energy = GAME.maxEnergy;
     const surfaces = this.stage.activateBuilding();
+    this.cameraController.setSurfaces(surfaces);
     this.projectiles.setObstacleSurfaces(surfaces);
     this.player.movement.enterSurfaceMode(
       surfaces,
@@ -336,15 +364,12 @@ export class Game {
       return;
     }
     if (event.code !== "Escape" || !["playing", "paused"].includes(this.state.mode)) return;
-    this.state.mode = this.state.mode === "playing" ? "paused" : "playing";
-    this.ui.showPause(this.state.mode === "paused");
-    this.previousTime = performance.now();
+    this.setPaused(this.state.mode === "playing");
   };
 
   private onVisibility = (): void => {
     if (document.hidden && this.state.mode === "playing") {
-      this.state.mode = "paused";
-      this.ui.showPause(true);
+      this.setPaused(true);
     }
     this.previousTime = performance.now();
   };

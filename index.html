@@ -18,11 +18,11 @@
       </div>
       <div id="hud" class="hidden">
         <section class="hud-block status">
-          <div class="label-row"><span>INTEGRITY</span><span id="health-text">100</span></div>
+          <div class="label-row"><span>装甲 / HP</span><span id="health-text">100</span></div>
           <div class="bar"><i id="health-bar"></i></div>
-          <div class="label-row"><span>ENERGY</span><span id="energy-text">100</span></div>
+          <div class="label-row"><span>スライド / ENERGY</span><span id="energy-text">100</span></div>
           <div class="bar energy"><i id="energy-bar"></i></div>
-          <div class="tiny">WEAPON // PULSE ARRAY</div>
+          <div id="movement-status" class="tiny">地面走行</div>
         </section>
         <section class="hud-block mission">
           <strong id="timer">03:00</strong>
@@ -33,11 +33,15 @@
         </section>
         <div id="lock-label">NO LOCK</div>
         <div id="crosshair"><i></i><i></i><i></i><i></i></div>
-        <div id="boss-indicator" class="hidden" aria-live="polite">
-          <span>CLEAR TARGET</span>
+        <div id="boss-indicator" class="hidden">
+          <span>撃破目標 / BOSS <b id="boss-distance"></b></span>
           <strong id="boss-name">BOSS</strong>
           <div class="boss-health"><i id="boss-health-bar"></i></div>
         </div>
+        <div id="boss-marker" class="hidden"><span>◇</span><small>BOSS</small></div>
+        <div id="hit-marker" class="hidden">×</div>
+        <div id="combat-help">右クリック：追尾攻撃　F：弱点スキャン　Space：ジャンプ</div>
+        <button id="pause-button" aria-label="一時停止">Ⅱ <span>ESC</span></button>
         <div id="warning"></div>
         <div id="fps"></div>
       </div>
@@ -55,19 +59,20 @@
       <main id="title-screen" class="overlay">
         <p class="eyebrow">NEURAL DEFENSE INCURSION // 01</p>
         <h1>VECTOR<br /><em>CRAWLER</em></h1>
-        <p class="lead">四脚走行メカで円筒防衛網を突破せよ。<br />壁も天井も、すべてが走路になる。</p>
+        <p class="lead">ボスを撃破して、次の戦場へ。<br />スキャンで弱点を暴き、追尾攻撃とスライドを使いこなせ。</p>
         <div class="stage-select" aria-label="ステージ選択">
           <span>STAGE SELECT</span>
           <div>
-            <button class="primary" data-stage-start="1">STAGE 1</button>
-            <button data-stage-start="2">STAGE 2</button>
-            <button data-stage-start="3">STAGE 3</button>
-            <button data-stage-start="4">STAGE 4</button>
+            <button class="primary" data-stage-start="1">STAGE 1<small>防衛トンネル</small></button>
+            <button data-stage-start="2">STAGE 2<small>建築群・防衛コア</small></button>
+            <button data-stage-start="3">STAGE 3<small>大型多脚戦車</small></button>
+            <button data-stage-start="4">STAGE 4<small>巨大攻撃ヘリ</small></button>
           </div>
         </div>
         <div class="controls">
           <span>WASD 移動</span><span>マウス 照準</span><span>クリック 射撃</span>
           <span>右クリック ロック</span><span>Shift スライド</span><span>F スキャン</span>
+          <span>Space ジャンプ・壁から離脱</span><span>Esc 一時停止</span>
         </div>
         <div class="settings">
           <label><input id="low-mode" type="checkbox" /> 低性能モード</label>
@@ -76,13 +81,16 @@
         </div>
       </main>
       <section id="pause-screen" class="overlay hidden">
-        <h2>PAUSED</h2><p>Escapeで再開</p>
+        <h2>PAUSED</h2><p>一時停止中</p>
+        <button id="resume-button" class="primary">再開する</button>
+        <button data-return-title>ステージ選択へ</button>
       </section>
       <section id="result-screen" class="overlay hidden">
         <p id="result-kicker" class="eyebrow"></p>
         <h2 id="result-title"></h2>
         <div id="result-stats"></div>
         <button id="retry-button" class="primary">RETRY</button>
+        <button data-return-title>ステージ選択へ</button>
       </section>
       <div id="error-screen" class="overlay hidden"><h2>起動エラー</h2><pre id="error-message"></pre></div>
     </div>

@@ -19,6 +19,13 @@ export class ScanSystem {
     scene.add(this.ring);
   }
 
+  reset(): void {
+    this.cooldown = 0;
+    this.active = false;
+    this.progress = 0;
+    this.ring.visible = false;
+  }
+
   tryActivate(player: Player, enemies: Enemy[]): boolean {
     if (this.cooldown > 0) return false;
     this.cooldown = GAME.scanCooldown;

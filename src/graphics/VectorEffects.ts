@@ -18,6 +18,7 @@ export class VectorEffects {
     if (this.muzzleFlash) {
       this.scene.remove(this.muzzleFlash);
       this.muzzleFlash.geometry.dispose();
+      (this.muzzleFlash.material as THREE.Material).dispose();
     }
     this.muzzleFlash = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([origin, origin.clone().addScaledVector(direction, 3.5)]),

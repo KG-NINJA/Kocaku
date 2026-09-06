@@ -13,16 +13,23 @@ export class CameraController {
   private aimPitch = 0;
   private readonly impactAxis = new THREE.Vector3();
   private impactShake = 0;
+  private surfaces: THREE.Object3D[] = [];
+  private readonly obstacleRay = new THREE.Raycaster();
+
+  setSurfaces(surfaces: THREE.Object3D[]): void { this.surfaces = surfaces; }
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
   reset(player: Player): void {
     this.impactShake = 0;
+    this.aimYaw = 0;
+    this.aimPitch = 0;
     const position = player.getWorldPosition();
     const inward = player.movement.getInward();
     const forward = player.movement.getForward();
     this.camera.position.copy(position).addScaledVector(inward, GAME.cameraHeight).addScaledVector(forward, -GAME.cameraDistance);
     this.up.copy(inward);
+    this.camera.up.copy(inward);
     this.lookTarget.copy(position).addScaledVector(forward, 8);
     this.camera.lookAt(this.lookTarget);
   }
@@ -57,6 +64,14 @@ export class CameraController {
       }
     }
     dampVector(this.camera.position, this.desired, 7, dt);
+    if (this.surfaces.length) {
+      const origin = playerPosition.clone().addScaledVector(inward, 1);
+      const direction = this.camera.position.clone().sub(origin);
+      this.obstacleRay.set(origin, direction.clone().normalize());
+      this.obstacleRay.far = direction.length();
+      const hit = this.obstacleRay.intersectObjects(this.surfaces, false)[0];
+      if (hit) this.camera.position.copy(origin).addScaledVector(this.obstacleRay.ray.direction, Math.max(0.3, hit.distance - 0.35));
+    }
     dampVector(this.up, inward, 3.5, dt).normalize();
 
     this.lookTarget.copy(playerPosition).addScaledVector(forward, 10);

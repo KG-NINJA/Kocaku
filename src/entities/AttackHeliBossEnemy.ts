@@ -33,6 +33,7 @@ export class AttackHeliBossEnemy extends BossEnemy {
   override relocate(position: THREE.Vector3, normal = new THREE.Vector3(0, 1, 0)): void {
     super.relocate(position, normal);
     this.flightCenter.copy(position);
+    this.rocketCooldown = 0.8;
   }
 
   override update(dt: number, elapsed: number, player: Player, shoot: EnemyShotCallback): void {

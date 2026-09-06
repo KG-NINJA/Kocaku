@@ -51,6 +51,17 @@ export class ParticleSystem {
     this.bossSequence = { origin: position.clone(), time: 0, nextSmall: 0, largeStarted: false };
   }
 
+  clear(): void {
+    this.bossSequence = undefined;
+    for (const object of [...this.bursts.map(burst => burst.line), ...this.polygonFragments.map(fragment => fragment.mesh)]) {
+      this.scene.remove(object);
+      object.geometry.dispose();
+      (object.material as THREE.Material).dispose();
+    }
+    this.bursts.length = 0;
+    this.polygonFragments.length = 0;
+  }
+
   update(dt: number): void {
     if (this.bossSequence) {
       const sequence = this.bossSequence;

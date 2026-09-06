@@ -25,6 +25,7 @@ export class DroneEnemy extends Enemy {
   }
 
   override relocate(position: THREE.Vector3): void {
+    this.cooldown = 0.8;
     this.resetHitReaction();
     this.basePosition.copy(position);
     this.group.position.copy(position);

@@ -31,6 +31,12 @@ export class BossEnemy extends Enemy {
     this.group.position.set(0, 0, GAME.bossZ);
   }
 
+  override relocate(position: THREE.Vector3, normal = new THREE.Vector3(0, 1, 0)): void {
+    super.relocate(position, normal);
+    this.cooldown = 1;
+    this.weakpoints.forEach(point => { point.visible = false; });
+  }
+
   override scan(duration = 5): void {
     super.scan(duration);
     this.weakpoints.forEach((point) => {

@@ -109,12 +109,13 @@ export class StageManager {
     this.buildingGroup.add(goal);
   }
 
-  private addSurfaceBox(size: THREE.Vector3, position: THREE.Vector3, material: THREE.Material, lowPerformance: boolean): void {
-    const segments = lowPerformance ? 1 : 3;
+  private addSurfaceBox(size: THREE.Vector3, position: THREE.Vector3, material: THREE.MeshBasicMaterial, _lowPerformance: boolean): void {
     const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(size.x, size.y, size.z, segments, segments, segments),
-      material
+      new THREE.BoxGeometry(size.x, size.y, size.z),
+      new THREE.MeshBasicMaterial({ color: size.y <= 6 ? 0x071d25 : 0x092b32, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })
     );
+    const outline = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: material.color, transparent: true, opacity: 0.75 }));
+    mesh.add(outline);
     mesh.position.copy(position);
     this.buildingSurfaces.push(mesh);
     this.buildingGroup.add(mesh);

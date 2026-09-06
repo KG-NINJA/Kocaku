@@ -15,6 +15,9 @@ const required = <T extends Element>(selector: string): T => {
 export class UIManager {
   readonly stageButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-stage-start]"));
   readonly retryButton = required<HTMLButtonElement>("#retry-button");
+  readonly pauseButton = required<HTMLButtonElement>("#pause-button");
+  readonly resumeButton = required<HTMLButtonElement>("#resume-button");
+  readonly titleButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-return-title]"));
   readonly lowMode = required<HTMLInputElement>("#low-mode");
   readonly volume = required<HTMLInputElement>("#volume");
   readonly muteButton = required<HTMLButtonElement>("#mute-button");
@@ -37,6 +40,12 @@ export class UIManager {
   private readonly bossIndicator = required<HTMLElement>("#boss-indicator");
   private readonly bossName = required<HTMLElement>("#boss-name");
   private readonly bossHealthBar = required<HTMLElement>("#boss-health-bar");
+  private readonly bossMarker = required<HTMLElement>("#boss-marker");
+  private readonly bossDistance = required<HTMLElement>("#boss-distance");
+  private readonly movementStatus = required<HTMLElement>("#movement-status");
+  private readonly hitMarker = required<HTMLElement>("#hit-marker");
+  private hitTime = 0;
+  private readonly projected = new THREE.Vector3();
   private readonly warning = required<HTMLElement>("#warning");
   private readonly fps = required<HTMLElement>("#fps");
   private readonly scanFlash = required<HTMLElement>("#scan-flash");
@@ -47,6 +56,9 @@ export class UIManager {
   private announcementTime = 0;
 
   showGame(touch: boolean): void {
+    this.hitTime = 0;
+    this.hitMarker.classList.add("hidden");
+    this.scanFlash.classList.remove("pulse", "boss-blast");
     this.title.classList.add("hidden");
     this.result.classList.add("hidden");
     this.pause.classList.add("hidden");
@@ -57,6 +69,19 @@ export class UIManager {
 
   showPause(paused: boolean): void {
     this.pause.classList.toggle("hidden", !paused);
+    this.touchControls.classList.toggle("hidden", paused || !matchMedia("(pointer: coarse)").matches);
+  }
+
+  showTitle(): void {
+    this.title.classList.remove("hidden");
+    [this.hud, this.pause, this.result, this.touchControls, this.stageClearBanner].forEach(element => element.classList.add("hidden"));
+    this.scanFlash.classList.remove("pulse", "boss-blast");
+    this.announcementTime = 0;
+  }
+
+  confirmHit(destroyed: boolean): void {
+    this.hitTime = destroyed ? 0.3 : 0.12;
+    this.hitMarker.classList.toggle("destroyed", destroyed);
   }
 
   update(
@@ -82,15 +107,21 @@ export class UIManager {
     this.score.textContent = state.score.toString().padStart(6, "0");
     this.stageNumber.textContent = state.stage.toString();
     this.enemies.textContent = enemyCount.toString();
-    this.scan.textContent = scanSystem.cooldown <= 0 ? "READY" : `${scanSystem.cooldown.toFixed(1)}s`;
-    this.lock.textContent = locked ? "TARGET LOCKED" : "NO LOCK";
+    this.scan.textContent = scanSystem.cooldown <= 0 ? "F / 使用可能" : `${Math.ceil(scanSystem.cooldown)}s`;
+    this.lock.textContent = locked ? "追尾攻撃中" : "";
+    this.movementStatus.textContent = player.movement.wallAttached ? "壁面吸着 / Spaceで離脱" : !player.movement.grounded ? "空中 / 着地待ち" : "地面走行 / Shiftでスライド";
+    this.movementStatus.classList.toggle("attached", player.movement.wallAttached);
+    this.hud.classList.toggle("critical", healthPercent <= 25);
+    this.timer.classList.toggle("urgent", state.timeLeft <= 30);
+    this.hitTime = Math.max(0, this.hitTime - dt);
+    this.hitMarker.classList.toggle("hidden", this.hitTime <= 0);
     this.lock.classList.toggle("active", locked);
     this.crosshair.classList.toggle("locked", locked);
-    this.updateBossIndicator(state, boss, camera);
+    this.updateBossIndicator(state, boss, camera, player);
     this.announcementTime = Math.max(0, this.announcementTime - dt);
     this.warning.textContent = this.announcementTime > 0
       ? this.announcement
-      : healthPercent <= 25 ? "WARNING // STRUCTURAL FAILURE" : "";
+      : healthPercent <= 25 ? "装甲低下 — スライドで攻撃を回避" : state.timeLeft <= 30 ? "残り30秒 — ボスを撃破せよ" : "";
     this.frameCount += 1;
     this.fpsTime += dt;
     if (this.fpsTime >= 0.5) {
@@ -100,9 +131,10 @@ export class UIManager {
     }
   }
 
-  private updateBossIndicator(state: RuntimeState, boss: BossEnemy, camera: THREE.Camera): void {
+  private updateBossIndicator(state: RuntimeState, boss: BossEnemy, camera: THREE.Camera, player: Player): void {
     const visible = state.mode === "playing" && boss.alive;
     this.bossIndicator.classList.toggle("hidden", !visible);
+    this.bossMarker.classList.toggle("hidden", !visible);
     if (!visible) return;
 
     const labels: Record<number, string> = {
@@ -114,14 +146,20 @@ export class UIManager {
     this.bossName.textContent = labels[state.stage] ?? "BOSS";
     this.bossHealthBar.style.width = `${THREE.MathUtils.clamp(boss.health / boss.maxHealth * 100, 0, 100)}%`;
 
-    const projected = boss.getPosition(new THREE.Vector3()).project(camera);
-    if (projected.z > 1) projected.set(0, -0.72, 0);
-    const marginX = 90;
-    const marginY = 65;
-    const x = THREE.MathUtils.clamp((projected.x * 0.5 + 0.5) * innerWidth, marginX, innerWidth - marginX);
-    const y = THREE.MathUtils.clamp((-projected.y * 0.5 + 0.5) * innerHeight, marginY, innerHeight - marginY);
-    this.bossIndicator.style.left = `${x}px`;
-    this.bossIndicator.style.top = `${y}px`;
+    boss.getPosition(this.projected);
+    this.bossDistance.textContent = `${Math.round(this.projected.distanceTo(player.group.position))}m`;
+    this.projected.applyMatrix4(camera.matrixWorldInverse);
+    const behind = this.projected.z >= 0;
+    const side = this.projected.x >= 0 ? 1 : -1;
+    this.projected.applyMatrix4(camera.projectionMatrix);
+    const offscreen = behind || Math.abs(this.projected.x) > 0.88 || Math.abs(this.projected.y) > 0.78;
+    const x = behind ? side * 0.88 : THREE.MathUtils.clamp(this.projected.x, -0.88, 0.88);
+    const y = behind ? 0 : THREE.MathUtils.clamp(this.projected.y, -0.78, 0.55);
+    this.bossMarker.style.left = `${(x * 0.5 + 0.5) * innerWidth}px`;
+    this.bossMarker.style.top = `${(-y * 0.5 + 0.5) * innerHeight}px`;
+    this.bossMarker.classList.toggle("offscreen", offscreen);
+    this.bossMarker.querySelector("span")!.textContent = offscreen ? behind || Math.abs(this.projected.x) > 0.88 ? x > 0 ? "▶" : "◀" : this.projected.y > 0 ? "▲" : "▼" : "◇";
+    this.bossMarker.querySelector("small")!.textContent = behind ? "後方 / BOSS" : "BOSS";
   }
 
   triggerScan(): void {
@@ -132,6 +170,7 @@ export class UIManager {
 
   announceStage(stage: number): void {
     const labels: Record<number, string> = {
+      1: "STAGE 1 // 防衛トンネル — 奥のボスを撃破",
       2: "STAGE 2 // SURFACE COMPLEX",
       3: "STAGE 3 // ARMORED CONFLUENCE",
       4: "STAGE 4 // AIR RAID ZONE",
@@ -141,7 +180,7 @@ export class UIManager {
   }
 
   announceBossExplosion(stage: number): void {
-    this.announcement = stage === 1 ? "STAGE 1 BOSS // CORE COLLAPSE" : "DEFENSE CORE // DETONATION";
+    this.announcement = `STAGE ${stage} // ボス撃破`;
     this.announcementTime = 3.2;
     this.scanFlash.classList.remove("boss-blast");
   }
@@ -154,6 +193,7 @@ export class UIManager {
   showStageClear(stage: number): void {
     const title = this.stageClearBanner.querySelector("strong");
     if (title) title.textContent = `STAGE ${stage} CLEAR`;
+    this.stageClearBanner.querySelector("i")!.textContent = stage === 4 ? "ALL SECTORS SECURED" : "次のステージへ / 装甲 +40・エネルギー回復";
     this.stageClearBanner.classList.add("hidden");
     void this.stageClearBanner.offsetWidth;
     this.stageClearBanner.classList.remove("hidden");
@@ -164,11 +204,12 @@ export class UIManager {
   }
 
   showResult(clear: boolean, state: RuntimeState, scores: ScoreSystem): void {
+    this.hideStageClear();
     this.hud.classList.add("hidden");
     this.touchControls.classList.add("hidden");
     this.result.classList.remove("hidden");
     required<HTMLElement>("#result-kicker").textContent = clear ? "DEFENSE CORE ERASED" : "SIGNAL TERMINATED";
-    required<HTMLElement>("#result-title").textContent = clear ? "STAGE CLEAR" : "GAME OVER";
+    required<HTMLElement>("#result-title").textContent = clear ? "ALL CLEAR" : "GAME OVER";
     required<HTMLElement>("#result-stats").innerHTML = `
       <span>SCORE <b>${state.score.toString().padStart(6, "0")}</b></span>
       <span>DESTROYED <b>${state.kills}</b></span>

@@ -27,6 +27,11 @@ export class TurretEnemy extends Enemy {
     orientToSurface(this.group, theta, 1);
   }
 
+  override relocate(position: THREE.Vector3, normal = new THREE.Vector3(0, 1, 0)): void {
+    super.relocate(position, normal);
+    this.cooldown = 1;
+  }
+
   update(dt: number, _elapsed: number, player: Player, shoot: EnemyShotCallback): void {
     if (!this.alive) return;
     this.tickReveal(dt);

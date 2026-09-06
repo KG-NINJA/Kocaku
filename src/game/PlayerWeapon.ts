@@ -13,6 +13,12 @@ export class PlayerWeapon {
   private readonly origin = new THREE.Vector3();
   private readonly direction = new THREE.Vector3();
 
+  reset(): void {
+    this.lockTarget = undefined;
+    this.cooldown = 0;
+    this.missileCooldown = 0;
+  }
+
   update(dt: number, firing: boolean, locking: boolean, player: Player, camera: CameraController,
     projectiles: ProjectileManager, effects: VectorEffects, onShot: () => void): void {
     this.cooldown = Math.max(0, this.cooldown - dt);

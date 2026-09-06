@@ -35,15 +35,15 @@ const VectorScreenShader = {
       float wave = sin(uv.y * 32.0 + time * 15.0) * damage * 0.006;
       uv.x += wave;
       vec3 color = texture2D(tDiffuse, uv).rgb;
-      float lines = lowQuality > 0.5 ? 0.96 : 0.88 + 0.12 * sin(uv.y * resolution.y * 0.55);
-      float noise = (hash(uv + fract(time)) - 0.5) * (lowQuality > 0.5 ? 0.015 : 0.035);
+      float lines = lowQuality > 0.5 ? 0.98 : 0.97 + 0.03 * sin(uv.y * resolution.y * 0.55);
+      float noise = (hash(uv + fract(time)) - 0.5) * 0.008;
       float vignette = smoothstep(0.85, 0.18, length(uv - 0.5));
       color *= lines * (0.78 + vignette * 0.28);
       color += noise + scan * vec3(0.08, 0.2, 0.18);
       color.r += damage * 0.35;
       color *= 1.0 + damage * 0.12;
       float blast = explosion * explosion;
-      color = mix(color, vec3(0.72, 1.0, 0.96), blast * 0.78);
+      color = mix(color, vec3(0.72, 1.0, 0.96), blast * 0.35);
       color += vec3(0.18, 0.42, 0.34) * explosion;
       gl_FragColor = vec4(color, 1.0);
     }
@@ -62,10 +62,10 @@ export class PostProcessing {
     this.composer = new EffectComposer(renderer);
     this.composer.setPixelRatio(Math.min(devicePixelRatio, lowPerformance ? 0.8 : 1.35));
     this.composer.addPass(new RenderPass(scene, camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), lowPerformance ? 0.45 : 0.82, 0.38, 0.42);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), lowPerformance ? 0.35 : 0.52, 0.3, 0.48);
     this.composer.addPass(this.bloom);
     if (!lowPerformance) {
-      const afterimage = new AfterimagePass(0.86);
+      const afterimage = new AfterimagePass(0.62);
       this.composer.addPass(afterimage);
     }
     this.finalPass = new ShaderPass(VectorScreenShader);

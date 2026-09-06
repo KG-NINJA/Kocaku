@@ -12,6 +12,7 @@ export class EnemyManager {
   readonly enemies: Enemy[] = [];
   boss: BossEnemy;
   private readonly stageBosses: BossEnemy[];
+  private readonly initialPlacements = new Map<Enemy, { position: THREE.Vector3; rotation: THREE.Quaternion }>();
 
   constructor(private readonly scene: THREE.Scene, lowPerformance: boolean) {
     const scale = lowPerformance ? 0.65 : 1;
@@ -32,6 +33,9 @@ export class EnemyManager {
   reset(): void {
     this.boss = this.stageBosses[0]!;
     this.enemies.forEach((enemy) => {
+      const initial = this.initialPlacements.get(enemy)!;
+      enemy.relocate(initial.position);
+      enemy.group.quaternion.copy(initial.rotation);
       enemy.resetHitReaction();
       enemy.alive = true;
       enemy.health = enemy.maxHealth;
@@ -53,9 +57,12 @@ export class EnemyManager {
   }
 
   prepareSurfaceStage(stage: 2 | 3 | 4): void {
-    this.boss = this.stageBosses[stage - 1]!;
     this.reset();
     this.boss = this.stageBosses[stage - 1]!;
+    this.stageBosses.forEach(boss => {
+      boss.alive = boss === this.boss;
+      boss.group.visible = boss.alive;
+    });
     this.boss.alive = true;
     this.boss.health = this.boss.maxHealth;
     this.boss.group.visible = true;
@@ -105,7 +112,7 @@ export class EnemyManager {
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
       const enemyPosition = enemy.getPosition(new THREE.Vector3());
-      const separation = playerPosition.sub(enemyPosition);
+      const separation = playerPosition.clone().sub(enemyPosition);
       const distance = separation.length();
       const contactRadius = enemy.contactRadius > 0
         ? enemy.contactRadius
@@ -146,6 +153,7 @@ export class EnemyManager {
   }
 
   private add(enemy: Enemy): void {
+    this.initialPlacements.set(enemy, { position: enemy.group.position.clone(), rotation: enemy.group.quaternion.clone() });
     this.enemies.push(enemy);
     this.scene.add(enemy.group);
   }

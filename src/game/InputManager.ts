@@ -17,6 +17,7 @@ export class InputManager {
     fire: false, lock: false, boost: false, jumpPressed: false, scanPressed: false
   };
   private readonly keys = new Set<string>();
+  private touchBoost = false;
   private movePointer: number | null = null;
   private aimPointer: number | null = null;
   private moveOrigin = { x: 0, y: 0 };
@@ -30,6 +31,7 @@ export class InputManager {
     canvas.addEventListener("pointerdown", this.onPointerDown);
     addEventListener("pointermove", this.onPointerMove);
     addEventListener("pointerup", this.onPointerUp);
+    addEventListener("pointercancel", this.onPointerUp);
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
     document.querySelectorAll<HTMLButtonElement>("[data-action]").forEach((button) => {
       button.addEventListener("pointerdown", (event) => this.touchAction(event, true));
@@ -48,7 +50,7 @@ export class InputManager {
       this.state.strafe = (this.keys.has("KeyA") ? 1 : 0) - (this.keys.has("KeyD") ? 1 : 0);
     }
     this.state.roll = (this.keys.has("KeyE") ? 1 : 0) - (this.keys.has("KeyQ") ? 1 : 0);
-    this.state.boost ||= this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
+    this.state.boost = this.touchBoost || this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
     return this.state;
   }
 
@@ -67,6 +69,7 @@ export class InputManager {
     this.canvas.removeEventListener("pointerdown", this.onPointerDown);
     removeEventListener("pointermove", this.onPointerMove);
     removeEventListener("pointerup", this.onPointerUp);
+    removeEventListener("pointercancel", this.onPointerUp);
   }
 
   private onKeyDown = (event: KeyboardEvent): void => {
@@ -75,9 +78,14 @@ export class InputManager {
     if (event.code === "KeyF" && !event.repeat) this.state.scanPressed = true;
   };
   private onKeyUp = (event: KeyboardEvent): void => { this.keys.delete(event.code); };
-  private reset = (): void => {
+  reset = (): void => {
     this.keys.clear();
-    Object.assign(this.state, { forward: 0, strafe: 0, roll: 0, fire: false, lock: false, boost: false });
+    this.touchBoost = false;
+    this.movePointer = null;
+    this.aimPointer = null;
+    Object.assign(this.state, { forward: 0, strafe: 0, roll: 0, aimX: 0, aimY: 0, jumpPressed: false, scanPressed: false, fire: false, lock: false, boost: false });
+    const stick = document.querySelector<HTMLElement>("#move-stick");
+    if (stick) stick.style.transform = "";
   };
   private onPointerDown = (event: PointerEvent): void => {
     if (this.touch) return;
@@ -132,10 +140,11 @@ export class InputManager {
     });
   }
   private touchAction(event: PointerEvent, active: boolean): void {
+    if (active) (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     const action = (event.currentTarget as HTMLElement).dataset.action;
     if (action === "fire") this.state.fire = active;
     if (action === "lock") this.state.lock = active;
-    if (action === "boost") this.state.boost = active;
+    if (action === "boost") this.touchBoost = active;
     if (action === "jump" && active) this.state.jumpPressed = true;
     if (action === "scan" && active) this.state.scanPressed = true;
   }
